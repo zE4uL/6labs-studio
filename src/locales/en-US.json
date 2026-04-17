@@ -1,0 +1,12 @@
+{
+  "app": {
+    "title": "6labs Studio",
+    "loading": "Loading...",
+    "error": "Something went wrong"
+  },
+  "nav": {
+    "home": "Home",
+    "studio": "Studio",
+    "settings": "Settings"
+  }
+}

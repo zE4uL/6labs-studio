@@ -1,0 +1,55 @@
+/**
+ * PageTopbar — Full-width navigation bar with back arrow + breadcrumb label.
+ * Sits above page content, 56px tall, white bg with subtle bottom border.
+ *
+ * @figmaComponent  Page Topbar
+ * @figmaNode       6419:75476
+ * @figmaFile       i9fxQ6pXrgRITEzopoXpWL
+ * @figmaUrl        https://www.figma.com/design/i9fxQ6pXrgRITEzopoXpWL/6labs?node-id=6419-75476
+ */
+
+interface PageTopbarProps {
+  title: string
+  onBack: () => void
+}
+
+export function PageTopbar({ title, onBack }: PageTopbarProps) {
+  return (
+    <div
+      className="w-full h-[56px] flex items-center relative shrink-0"
+      style={{
+        backgroundColor: 'white',
+        borderBottom: '1px solid var(--bg-subtle)',
+      }}
+    >
+      {/* Back button — positioned at left=20px, vertically centered */}
+      <button
+        className="absolute left-[20px] flex gap-[10px] items-center cursor-pointer"
+        onClick={onBack}
+      >
+        <div className="size-[24px] rounded-[100px] flex items-center justify-center">
+          <svg
+            width="7.5"
+            height="13.5"
+            viewBox="0 0 7.5 13.5"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              fillRule="evenodd"
+              clipRule="evenodd"
+              d="M7.28033 0.21967C7.57322 0.512563 7.57322 0.987437 7.28033 1.28033L1.81066 6.75L7.28033 12.2197C7.57322 12.5126 7.57322 12.9874 7.28033 13.2803C6.98744 13.5732 6.51256 13.5732 6.21967 13.2803L0.21967 7.28033C-0.0732233 6.98744 -0.0732233 6.51256 0.21967 6.21967L6.21967 0.21967C6.51256 -0.0732233 6.98744 -0.0732233 7.28033 0.21967Z"
+              fill="var(--text-secondary)"
+            />
+          </svg>
+        </div>
+        <span
+          className="font-display text-s font-semibold leading-[1.5] whitespace-nowrap"
+          style={{ color: 'var(--text-secondary)' }}
+        >
+          {title}
+        </span>
+      </button>
+    </div>
+  )
+}

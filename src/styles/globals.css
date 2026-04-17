@@ -1,0 +1,1742 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Auto-generated tokens from Figma — run `npm run sync-tokens` to refresh */
+/* When tokens.css exists, its values take precedence over the manual fallbacks below */
+@import "./tokens.css";
+
+/* ─── Apparatus Design Tokens — Light Mode (manual fallbacks) ─── */
+:root {
+  /* Backgrounds */
+  --bg-page:           #F1F1F1;
+  --bg-page-pale:      #F5F5F5;
+  --bg-elements:       #FFFFFF;
+  --bg-card:           #FFFFFF;
+  --bg-subtle:         #E6E7EA;
+  --bg-tint:           rgba(23,112,239,0.14);
+  --bg-tint-light:     rgba(23,112,239,0.07);
+  --bg-tint-dark:      rgba(23,112,239,0.40);
+  --bg-highlighted:    #1770EF;
+
+  /* Text & Icon */
+  --text-primary:      #030D2D;
+  --text-secondary:    #4F566C;
+  --text-tertiary:     #818696;
+  --text-placeholder:  #9A9EAB;
+  --text-disabled:     #9A9EAB;
+  --text-brand:        #1770EF;
+  --text-on-brand:     #FFFFFF;
+
+  /* Borders */
+  --border-default:    #CDCFD5;
+  --border-hover:      #9A9EAB;
+  --border-pressed:    #B3B6C0;
+  --border-subtle:     #E6E7EA;
+  --border-focus:      #1770EF;
+  --border-error:      #C9392A;
+  --border-tint:       rgba(23,112,239,0.14);
+  --border-brand-hover:#4D8FF5;
+
+  /* Brand */
+  --brand:             #1770EF;
+  --brand-hover:       #4D8FF5;
+  --brand-pressed:     #0D5ED4;
+
+  /* Complementary */
+  --pink:              #C20568;
+  --pink-hover:        #E31776;
+  --purple:            #7B4CFF;
+  --purple-hover:      #9873FF;
+  --purple-tint-light: rgba(123,76,255,0.07);
+  --purple-tint-dark:  rgba(123,76,255,0.40);
+
+  /* Status */
+  --error:             #C9392A;
+  --error-dark:        #A52E20;
+  --error-light:       #DE5A48;
+  --error-bg:          rgba(201,57,42,0.07);
+  --warning:           #FFB700;
+  --warning-bg:        rgba(255,183,0,0.07);
+  --success:           #16A34A;
+  --success-bg:        rgba(22,163,74,0.07);
+  --notice:            #67C3BB;
+  --notice-bg:         rgba(103,195,187,0.07);
+
+  /* Shadows */
+  --shadow-sm:         0px 2px 8px rgba(0,0,0,0.04);
+  --shadow-normal:     0px 4px 16px rgba(0,0,0,0.08);
+  --shadow-big:        0px 8px 24px rgba(0,0,0,0.08);
+  --shadow-button:     0px 8px 16px rgba(0,0,0,0.10);
+  --shadow-dark:       0px 4px 8px rgba(0,0,0,0.30);
+
+  /* Blur */
+  --blur-bg-small:     blur(24px);
+  --blur-bg-medium:    blur(64px);
+  --blur-bg-large:     blur(120px);
+  --blur-layer:        blur(120px);
+
+  /* Spacing */
+  --space-xxxs: 2px;
+  --space-xxs:  4px;
+  --space-xs:   8px;
+  --space-s:    12px;
+  --space-m:    16px;
+  --space-l:    20px;
+  --space-xl:   24px;
+  --space-xxl:  32px;
+  --space-xxxl: 40px;
+  --space-xxl2: 48px;
+  --space-xxl3: 64px;
+  --space-xxl4: 80px;
+  --space-xxl5: 96px;
+
+  /* Border Radius */
+  --radius-null:       0px;
+  --radius-xxs:        2px;
+  --radius-xs:         4px;
+  --radius-s:          6px;
+  --radius-m:          8px;
+  --radius-l:          10px;
+  --radius-xl:         12px;
+  --radius-2xl:        16px;
+  --radius-3xl:        20px;
+  --radius-4xl:        24px;
+  --radius-5xl:        32px;
+  --radius-6xl:        40px;
+  --radius-round:      9999px;
+  /* Semantic radius */
+  --radius-btn-sm:     4px;
+  --radius-btn-md:     6px;
+  --radius-btn-lg:     8px;
+  --radius-btn-xl:     10px;
+  --radius-btn-pill:   9999px;
+  --radius-input:      6px;
+  --radius-card:       12px;
+  --radius-modal:      8px;
+  --radius-tag:        4px;
+  --radius-avatar:     9999px;
+  --radius-container:  20px;
+
+  /* Typography */
+  --font-display: 'Bricolage Grotesque', sans-serif;
+  --font-body:    'Inter', sans-serif;
+  --font-code:    'Roboto Mono', monospace;
+}
+
+/* ─── Dark Mode ─── */
+.dark {
+  --bg-page:          #1A2236;
+  --bg-page-pale:     #1A2236;
+  --bg-elements:      #080D1A;
+  --bg-card:          #111827;
+  --bg-subtle:        #1C2542;
+  --bg-tint:          rgba(23,112,239,0.18);
+  --bg-tint-light:    rgba(23,112,239,0.10);
+
+  --text-primary:     #FFFFFF;
+  --text-secondary:   #9A9EAB;
+  --text-tertiary:    #686E81;
+  --text-placeholder: #4F566C;
+  --text-disabled:    #4F566C;
+
+  --border-default:   rgba(255,255,255,0.12);
+  --border-hover:     rgba(255,255,255,0.25);
+  --border-subtle:    rgba(255,255,255,0.06);
+
+  --shadow-sm:        0px 2px 4px rgba(0,0,0,0.20);
+  --shadow-normal:    0px 4px 12px rgba(0,0,0,0.30);
+  --shadow-big:       0px 8px 24px rgba(0,0,0,0.40);
+}
+
+/* ─── HomePage Content Background (matches Figma BG/HomePage BG) ─── */
+.homepage-content-bg {
+  background-color: var(--bg-page);
+}
+
+/* ─── Dropdown/Overlay Entrance Animation ─── */
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-in {
+  animation: dropdown-in 0.15s ease-out;
+}
+
+/* ─── Suggestion Card Hover ─── */
+.suggestion-card-hover:hover {
+  border-color: var(--border-focus);
+  background: linear-gradient(
+    90deg,
+    rgba(23, 112, 239, 0.07) 0%,
+    rgba(23, 112, 239, 0.07) 100%
+  ), var(--bg-elements);
+}
+
+/* ─── Game Selector List Item Hover ─── */
+.game-list-hover:hover {
+  background-color: var(--bg-tint);
+}
+
+/* ─── Sidebar Icon Hover ─── */
+.sidebar-icon-hover {
+  color: var(--text-tertiary);
+  transition: color 0.15s ease;
+}
+.sidebar-icon-hover:hover {
+  color: var(--text-secondary);
+}
+
+/* ─── Sidebar Profile Hover ─── */
+.profile-hover:hover {
+  background-color: var(--bg-tint-light);
+}
+
+/* ─── Sidebar Nav Active/Hover Gradient (matches Figma radial) ─── */
+.nav-active-gradient,
+.nav-hover-gradient:hover {
+  background: radial-gradient(
+    ellipse at left center,
+    var(--bg-tint) 0%,
+    var(--bg-tint-light) 100%
+  );
+}
+
+/* ─── Context: Full Uploader ─── */
+.context-uploader {
+  background-color: var(--bg-elements);
+  border: 2px dashed var(--border-default);
+}
+.context-uploader:hover {
+  border-color: var(--brand);
+  background-color: var(--bg-tint-light);
+}
+.context-uploader-dragover {
+  background-color: var(--bg-tint-light);
+  border: 2px dashed var(--brand);
+}
+
+/* ─── Context: Mini Uploader ─── */
+.mini-uploader-hover {
+  border: 1px dashed var(--border-default);
+  background-color: rgba(255,255,255,0.4);
+}
+.mini-uploader-hover:hover {
+  border-color: var(--brand);
+  background-color: var(--bg-tint-light);
+}
+
+/* ─── Context: File Card ─── */
+.context-file-card {
+  background-color: var(--bg-elements);
+  border: 1px solid var(--bg-subtle);
+}
+
+/* ─── Apparatus: Description Box (atom) ─── */
+/* Common base — p-12, rounded-6, shadow-sm, Inter 14px */
+.description-box {
+  box-shadow: 0px 2px 8px rgba(0,0,0,0.04);
+  outline: none;
+  border-radius: 6px;
+}
+.description-box-default {
+  background-color: white;
+  border: 1px solid var(--border-default);
+  color: var(--text-placeholder);
+}
+.description-box-hover {
+  background-color: white;
+  border: 1px solid var(--border-focus);
+  color: var(--text-placeholder);
+}
+.description-box-filled {
+  background-color: white;
+  border: 1px solid #CDCFD5;
+  color: var(--text-primary);
+}
+.description-box-focused {
+  background-color: white;
+  border: 1px solid var(--border-focus);
+  color: var(--text-primary);
+}
+.description-box-disabled {
+  background-color: rgba(0,0,0,0.08);
+  border: none;
+  color: rgba(0,0,0,0.7);
+  cursor: not-allowed;
+}
+
+/* ─── Context: File Card Delete Hover ─── */
+.file-card-delete-hover:hover {
+  color: var(--error);
+  background-color: var(--error-bg);
+}
+
+/* ─── Context: Connector Card ─── */
+.connector-card {
+  background-color: var(--bg-elements);
+  border: 1px solid var(--border-default);
+}
+.connector-card:hover {
+  border-color: var(--brand-hover);
+  box-shadow: var(--shadow-big);
+  background-color: var(--bg-card);
+}
+
+/* ─── Base Resets ─── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  height: 100%;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  background-color: var(--bg-page);
+  line-height: 1.5;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: var(--radius-round);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+/* ─── Focus Ring ─── */
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
+}
+
+/* ─── Resets ─── */
+textarea { resize: none; font-family: var(--font-body); }
+::selection { background-color: var(--bg-tint); color: var(--text-primary); }
+
+/* ─── Font Utilities ─── */
+.font-display { font-family: var(--font-display); }
+.font-body    { font-family: var(--font-body); }
+.font-code    { font-family: var(--font-code); }
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Button Component — Apparatus spec                                           */
+/* Spec ref: 📋 Button Spec Sheet · Apparatus Figma · Page: 💠 Buttons        */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+/* Base */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: inherit; /* overridden by size class */
+  font-family: var(--font-display);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background-color 0.12s ease, border-color 0.12s ease,
+              color 0.12s ease, opacity 0.12s ease;
+  user-select: none;
+  position: relative;
+  flex-shrink: 0;
+}
+.btn:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(23, 112, 239, 0.4);
+}
+.btn-danger:focus-visible {
+  box-shadow: 0 0 0 3px rgba(201, 57, 42, 0.4);
+}
+.btn-outline-complementary:focus-visible {
+  box-shadow: 0 0 0 3px rgba(123, 76, 255, 0.4);
+}
+
+/* ─── Sizes (Label variants) ─────────────────────────────────────────────── */
+/* Apparatus: Small=24px · Medium=32px · Large=44px · XLarge=56px            */
+
+.btn-sm {
+  height: 24px;
+  padding: 4px 12px;  /* paddingY=xxs · paddingX=s */
+  gap: 4px;           /* gap=xxs */
+  font-size: 0.625rem;/* size/2xs = 10px */
+  border-radius: var(--radius-btn-sm); /* Semantic/button/small = 4px */
+}
+.btn-md {
+  height: 32px;
+  padding: 8px 16px;  /* paddingY=xs · paddingX=m */
+  gap: 8px;           /* gap=xs */
+  font-size: 0.75rem; /* size/xs = 12px */
+  border-radius: var(--radius-btn-md); /* Semantic/button/medium = 6px */
+}
+.btn-lg {
+  height: 44px;
+  padding: 12px 24px; /* paddingY=s · paddingX=xl */
+  gap: 12px;          /* gap=s */
+  font-size: 0.875rem;/* size/s = 14px */
+  border-radius: var(--radius-btn-lg); /* Semantic/button/large = 8px */
+}
+.btn-xl {
+  height: 56px;
+  padding: 16px 32px; /* paddingY=m · paddingX=xxl */
+  gap: 12px;          /* gap=s */
+  font-size: 1rem;    /* size/m = 16px */
+  border-radius: var(--radius-btn-xl); /* Semantic/button/xlarge = 10px */
+}
+
+/* Pill shape override */
+.btn-pill { border-radius: var(--radius-btn-pill) !important; }
+
+/* ─── Icon-only sizes (Icon Btn Square / Round) ──────────────────────────── */
+.btn-icon {
+  padding: 0;
+  flex-shrink: 0;
+}
+.btn-icon.btn-icon-sm { width: 24px;  height: 24px;  border-radius: var(--radius-btn-sm); }
+.btn-icon.btn-icon-md { width: 32px;  height: 32px;  border-radius: var(--radius-btn-md); }
+.btn-icon.btn-icon-lg { width: 44px;  height: 44px;  border-radius: var(--radius-btn-lg); }
+.btn-icon.btn-icon-xl { width: 56px;  height: 56px;  border-radius: var(--radius-btn-xl); }
+.btn-icon.btn-icon-round { border-radius: var(--radius-round) !important; }
+
+/* ─── Icon slot sizes (inside label buttons) ─────────────────────────────── */
+/* Icon: sm=12px · md=16px · lg=20px · xl=24px */
+.btn-icon-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.btn-sm .btn-icon-slot { width: 12px; height: 12px; }
+.btn-md .btn-icon-slot { width: 16px; height: 16px; }
+.btn-lg .btn-icon-slot { width: 20px; height: 20px; }
+.btn-xl .btn-icon-slot { width: 24px; height: 24px; }
+/* also cover icon-only buttons used as wrappers */
+.btn-icon.btn-icon-sm > svg,
+.btn-icon.btn-icon-sm > * { width: 12px; height: 12px; }
+.btn-icon.btn-icon-md > svg,
+.btn-icon.btn-icon-md > * { width: 16px; height: 16px; }
+.btn-icon.btn-icon-lg > svg,
+.btn-icon.btn-icon-lg > * { width: 20px; height: 20px; }
+.btn-icon.btn-icon-xl > svg,
+.btn-icon.btn-icon-xl > * { width: 24px; height: 24px; }
+
+/* ─── Type: Primary ──────────────────────────────────────────────────────── */
+/* Interactive/Brand fill · Text & Icon/OnBrand · Shadow/Button Shadow       */
+.btn-primary {
+  background-color: var(--brand);
+  color: #ffffff;
+  border-color: transparent;
+}
+.btn-primary:hover:not(:disabled) { background-color: var(--brand-hover); }
+.btn-primary:active:not(:disabled) { background-color: var(--brand-pressed); }
+.btn-primary:disabled {
+  background-color: var(--bg-subtle);
+  color: var(--text-disabled);
+  box-shadow: none;
+}
+
+/* ─── Type: Secondary ────────────────────────────────────────────────────── */
+/* Neutral/Surface-Pale · Text & Icon/Primary · Border/Subtle               */
+.btn-secondary {
+  background-color: var(--bg-page-pale);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--bg-tint-light);
+  border-color: var(--border-subtle);
+}
+.btn-secondary:active:not(:disabled) {
+  background-color: var(--bg-tint-light);
+  border-color: var(--brand);
+}
+.btn-secondary:disabled {
+  background-color: var(--bg-subtle);
+  color: var(--text-disabled);
+  border-color: var(--border-subtle);
+}
+
+/* ─── Type: Tertiary ─────────────────────────────────────────────────────── */
+/* Neutral/Surface-Pale · Text & Icon/Primary · Border/Subtle               */
+.btn-tertiary {
+  background-color: transparent;
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+.btn-tertiary:hover:not(:disabled) {
+  background-color: var(--bg-page-pale);
+  border-color: var(--border-default);
+}
+.btn-tertiary:active:not(:disabled) {
+  background-color: var(--bg-subtle);
+  border-color: var(--border-pressed);
+}
+.btn-tertiary:disabled {
+  background-color: var(--bg-page-pale);
+  color: var(--text-disabled);
+  border-color: var(--border-subtle);
+}
+
+/* ─── Type: Outline ──────────────────────────────────────────────────────── */
+/* Transparent · Text & Icon/Brand · Border/Brand                            */
+.btn-outline {
+  background-color: transparent;
+  color: var(--text-brand);
+  border-color: var(--brand);
+}
+.btn-outline:hover:not(:disabled) {
+  background-color: var(--bg-tint-light);
+  border-color: var(--brand-hover);
+}
+.btn-outline:active:not(:disabled) {
+  background-color: var(--bg-tint-light);
+  border-color: var(--brand-pressed);
+  color: var(--text-brand);
+}
+.btn-outline:disabled {
+  color: var(--text-disabled);
+  border-color: var(--border-subtle);
+}
+
+/* ─── Type: Outline - Complementary ─────────────────────────────────────── */
+/* Transparent · Purple · Purple border                                       */
+.btn-outline-complementary {
+  background-color: transparent;
+  color: var(--purple);
+  border-color: var(--purple);
+}
+.btn-outline-complementary:hover:not(:disabled) {
+  color: var(--purple-hover);
+  border-color: var(--purple-hover);
+  background-color: var(--purple-tint-light);
+}
+.btn-outline-complementary:active:not(:disabled) {
+  background-color: rgba(123, 76, 255, 0.14);
+}
+.btn-outline-complementary:disabled {
+  color: var(--text-disabled);
+  border-color: var(--border-subtle);
+}
+
+/* ─── Type: Danger ───────────────────────────────────────────────────────── */
+/* Status/Error fill · white text                                             */
+.btn-danger {
+  background-color: var(--error);
+  color: #ffffff;
+  border-color: transparent;
+}
+.btn-danger:hover:not(:disabled) { background-color: var(--error-light); }
+.btn-danger:active:not(:disabled) { background-color: var(--error-dark); }
+.btn-danger:disabled {
+  background-color: var(--bg-subtle);
+  color: var(--text-disabled);
+  box-shadow: none;
+}
+
+/* ─── Videos Container — Toggle buttons ────────────────────────────────── */
+.toggle-btn-hover:hover { background-color: var(--bg-page); }
+.toggle-btn-active,
+.toggle-btn-active:hover {
+  background-color: var(--bg-subtle) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-pressed) !important;
+}
+
+/* ─── Type: Blueish ──────────────────────────────────────────────────────── */
+/* Gradient/Blue style · white text · white border                           */
+.btn-blueish {
+  background: linear-gradient(to left, #7B4CFF, #0EA4C5);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+.btn-blueish:hover:not(:disabled) {
+  background: linear-gradient(to left, #9C79FF, #0FD4FF);
+}
+.btn-blueish:active:not(:disabled) {
+  background: linear-gradient(to left, #7B4CFF, #0EA4C5);
+  filter: brightness(0.9);
+}
+.btn-blueish:disabled {
+  background: var(--bg-subtle);
+  color: var(--text-disabled);
+  border-color: var(--border-subtle);
+}
+
+/* ─── Type: Translucent ──────────────────────────────────────────────────── */
+/* White-20 fill · dark text · subtle border — for light/image surfaces      */
+.btn-translucent {
+  background-color: rgba(255, 255, 255, 0.20);
+  color: rgba(0, 0, 0, 0.70);
+  border-color: var(--border-subtle);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.btn-translucent:hover:not(:disabled) { background-color: rgba(255, 255, 255, 0.30); }
+.btn-translucent:active:not(:disabled) { background-color: rgba(255, 255, 255, 0.40); }
+.btn-translucent:disabled {
+  background-color: rgba(255, 255, 255, 0.10);
+  color: rgba(0, 0, 0, 0.30);
+  border-color: transparent;
+}
+
+/* ─── Type: Transparent ──────────────────────────────────────────────────── */
+/* No fill · Text & Icon/Primary                                              */
+.btn-transparent {
+  background-color: transparent;
+  color: var(--text-primary);
+  border-color: transparent;
+}
+.btn-transparent:hover:not(:disabled) { background-color: var(--bg-subtle); }
+.btn-transparent:active:not(:disabled) { background-color: var(--bg-subtle); }
+.btn-transparent:disabled { color: var(--text-disabled); }
+
+/* ─── Type: Link (Link-0-padding) ────────────────────────────────────────── */
+/* No padding · no border · text=Brand · inline text action                  */
+.btn-link {
+  background-color: transparent;
+  color: var(--text-brand);
+  border-color: transparent;
+  padding: 0;
+  height: auto;
+  gap: 4px;
+  font-size: inherit;
+  border-radius: 0;
+  box-shadow: none;
+}
+.btn-link:hover:not(:disabled) { text-decoration: underline; color: var(--brand-hover); }
+.btn-link:active:not(:disabled) { color: var(--brand-pressed); }
+.btn-link:disabled { color: var(--text-disabled); }
+
+/* Link sizes — no padding/height but font-size tracks Apparatus scale */
+.btn-link.btn-sm { font-size: 0.625rem; } /* size/2xs = 10px */
+.btn-link.btn-md { font-size: 0.75rem; }  /* size/xs  = 12px */
+.btn-link.btn-lg { font-size: 0.875rem; } /* size/s   = 14px */
+.btn-link.btn-xl { font-size: 1rem; }     /* size/m   = 16px */
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Input Component — Apparatus spec                                             */
+/* Spec ref: 📋 Input Field · Apparatus Figma · Page: 💠 Inputs Box            */
+/* Sizes: sm=24px · md=32px · lg=40px · xl=48px (from Input Skeleton)         */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* xxs */
+  width: 100%;
+}
+
+.input-label {
+  font-family: var(--font-display);              /* Figma: DisplayFont (Bricolage Grotesque) */
+  font-size: 10px;                               /* size/2xs */
+  font-weight: 500;                              /* weight/medium */
+  color: var(--text-secondary);                  /* Figma: input/text/label #4F566C */
+  opacity: 0.8;                                  /* Figma: 80% opacity */
+  letter-spacing: 1.5px;                         /* Figma: tracking 1.5px */
+  text-transform: uppercase;                     /* Figma: uppercase */
+  line-height: normal;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px; /* xxs */
+  background-color: var(--bg-elements);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-input); /* Semantic/input = 6px */
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+  width: 100%;
+  cursor: text;
+}
+
+.input-wrapper:hover:not(.input-disabled)         { border-color: var(--border-hover); }
+.input-wrapper:focus-within:not(.input-disabled)  { border-color: var(--border-focus); }
+.input-wrapper.input-error                        { border-color: var(--border-error); }
+.input-wrapper.input-disabled {
+  background-color: rgba(0, 0, 0, 0.08); /* Translucents Dark/Black-8 */
+  cursor: not-allowed;
+}
+
+.input-element {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  line-height: 1;
+}
+.input-element::placeholder       { color: var(--text-placeholder); }
+.input-element:disabled           { cursor: not-allowed; color: var(--text-disabled); }
+
+.input-icon-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.input-message {
+  font-family: var(--font-body);
+  font-size: 0.75rem; /* size/xs = 12px — matches Figma Msg text */
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.input-message-error { color: var(--error); }
+
+/* ─── Input Sizes ─────────────────────────────────────────────────────────── */
+/* All padding values taken directly from Figma Input Skeleton measurements     */
+
+.input-sm .input-wrapper {
+  height: 24px;
+  padding: 4px 4px 4px 8px; /* Figma: t=4 b=4 l=8 r=4 */
+}
+.input-sm .input-element          { font-size: 0.625rem; } /* size/2xs = 10px */
+.input-sm .input-icon-slot        { width: 12px; height: 12px; }
+.input-sm .input-icon-slot > svg  { width: 12px; height: 12px; }
+
+.input-md .input-wrapper {
+  height: 32px;
+  padding: 7px 6px 7px 9px; /* Figma: t=7 b=7 l=9 r=6 */
+}
+.input-md .input-element          { font-size: 0.75rem; } /* size/xs = 12px */
+.input-md .input-icon-slot        { width: 16px; height: 16px; }
+.input-md .input-icon-slot > svg  { width: 16px; height: 16px; }
+
+.input-lg .input-wrapper {
+  height: 40px;
+  padding: 9.5px 8px 9.5px 12px; /* Figma: t=9.5 b=9.5 l=12 r=8 */
+}
+.input-lg .input-element          { font-size: 0.875rem; } /* size/s = 14px */
+.input-lg .input-icon-slot        { width: 20px; height: 20px; }
+.input-lg .input-icon-slot > svg  { width: 20px; height: 20px; }
+
+.input-xl .input-wrapper {
+  height: 48px;
+  padding: 12px 10px 12px 14px; /* Figma: t=12 b=12 l=14 r=10 */
+}
+.input-xl .input-element          { font-size: 1rem; } /* size/m = 16px */
+.input-xl .input-icon-slot        { width: 24px; height: 24px; }
+.input-xl .input-icon-slot > svg  { width: 24px; height: 24px; }
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* InputFieldConsole — Apparatus spec                                          */
+/* Spec ref: Input Field Console Radiologist · 6labs Figma · Node: 1889:17490  */
+/* Types: Default (multiline) · Mini (single-line)                             */
+/* States: Default · Hover · Active                                            */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.input-console {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-s); /* 12px */
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--space-m); /* 16px */
+  border-radius: var(--radius-container); /* 20px */
+  border: 1px solid var(--border-default);
+  background-color: var(--bg-elements);
+  transition: border-color 0.15s ease;
+  width: 100%;
+  cursor: text;
+}
+.input-console:hover         { border-color: var(--brand); }
+.input-console:focus-within  { border-color: var(--brand); }
+
+/* Mini type — single-row layout */
+.input-console-mini {
+  flex-direction: row;
+  align-items: center;
+  padding: var(--space-m) var(--space-l); /* 16px 20px */
+}
+
+.input-console-textarea {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-body);
+  font-size: 1rem; /* size/m = 16px */
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-primary);
+  resize: none;
+  width: 100%;
+}
+.input-console-textarea::placeholder { color: var(--text-placeholder); }
+
+.input-console-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  flex-shrink: 0;
+}
+.input-console-mini .input-console-actions {
+  width: auto;
+  flex: 1 0 0;
+  min-width: 0;
+  min-height: 0;
+  gap: var(--space-s); /* 12px */
+  justify-content: flex-end;
+}
+
+
+/* Send CTA — disabled override: Figma uses base-300 at 50% opacity */
+.input-console-send-disabled {
+  background-color: #9A9EAB !important; /* Base-300 */
+  color: white !important; /* keep icon visible against grey bg */
+  opacity: 0.5;
+  box-shadow: none !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Checkbox & Radio — Apparatus spec                                            */
+/* Spec ref: Checkbox With Label / Radio Button With Label · 💠 Radio/Checkbox  */
+/* Sizes: md=16px control (default) · sm=14px control                          */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.checkbox-root,
+.radio-root {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px; /* xs */
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-root[data-disabled='true'],
+.radio-root[data-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Visually-hidden native input */
+.checkbox-root input,
+.radio-root input {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Custom control — checkbox (square) */
+.checkbox-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px; height: 16px;
+  background-color: var(--bg-elements);
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-xs); /* 4px */
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+/* Custom control — radio (round) */
+.radio-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 16px; height: 16px;
+  background-color: var(--bg-elements);
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-round);
+  transition: border-color 0.12s ease;
+}
+
+/* ─── Checked / active states ──────────────────────────────────────────────  */
+.checkbox-root[data-checked='true'] .checkbox-control,
+.checkbox-root[data-indeterminate='true'] .checkbox-control {
+  background-color: var(--brand);
+  border-color: var(--brand);
+}
+.radio-root[data-checked='true'] .radio-control {
+  border-color: var(--brand);
+}
+
+/* ─── Hover states ─────────────────────────────────────────────────────────  */
+.checkbox-root:hover:not([data-disabled='true']) .checkbox-control         { border-color: var(--border-hover); }
+.radio-root:hover:not([data-disabled='true'])    .radio-control            { border-color: var(--border-hover); }
+
+.checkbox-root[data-checked='true']:hover:not([data-disabled='true']) .checkbox-control,
+.checkbox-root[data-indeterminate='true']:hover:not([data-disabled='true']) .checkbox-control {
+  background-color: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
+.radio-root[data-checked='true']:hover:not([data-disabled='true']) .radio-control {
+  border-color: var(--brand-hover);
+}
+
+/* ─── Radio inner dot ──────────────────────────────────────────────────────  */
+.radio-dot {
+  border-radius: var(--radius-round);
+  background-color: var(--brand);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  width: 8px; height: 8px; /* md size */
+}
+.radio-root:not([data-checked='true']) .radio-dot {
+  transform: scale(0);
+  opacity: 0;
+}
+.radio-root[data-checked='true'] .radio-dot {
+  transform: scale(1);
+  opacity: 1;
+}
+.radio-root[data-checked='true']:hover:not([data-disabled='true']) .radio-dot {
+  background-color: var(--brand-hover);
+}
+
+/* ─── Labels ───────────────────────────────────────────────────────────────  */
+.checkbox-label,
+.radio-label {
+  font-family: var(--font-body);
+  font-size: 0.875rem; /* size/s = 14px — Medium */
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+/* ─── Small size ───────────────────────────────────────────────────────────  */
+.checkbox-sm .checkbox-control { width: 14px; height: 14px; }
+.radio-sm    .radio-control    { width: 14px; height: 14px; }
+.radio-sm    .radio-dot        { width: 6px;  height: 6px; }
+.checkbox-sm .checkbox-label,
+.radio-sm    .radio-label      { font-size: 0.75rem; } /* size/xs = 12px */
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Toggle — Apparatus spec                                                      */
+/* Spec ref: 📋 Toggle · Apparatus Figma · Page: 💠 Toggle                     */
+/* Track: 24×14px pill · Thumb: 10×10px round                                 */
+/* Off: outlined track (Base-300) + gray thumb · On: brand fill + white thumb  */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.toggle-root {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px; /* xs */
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-root[data-disabled='true'] {
+  cursor: not-allowed;
+}
+
+/* Visually-hidden native checkbox (role=switch) */
+.toggle-root input {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Track: 24×14px pill — Figma inset 20.83% in 24px container */
+.toggle-track {
+  position: relative;
+  width: 24px;
+  height: 14px;
+  border-radius: var(--radius-round);
+  background-color: transparent;
+  border: 1.5px solid #9A9EAB;          /* Figma: Base/Base-300 */
+  flex-shrink: 0;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+/* Active track: brand fill, no border */
+.toggle-root[data-checked='true'] .toggle-track {
+  background-color: var(--brand);        /* Figma: Brand Blue/500 #1770EF */
+  border-color: transparent;
+}
+
+/* Disabled inactive track */
+.toggle-root[data-disabled='true'][data-checked='false'] .toggle-track {
+  border-color: rgba(0, 0, 0, 0.16);    /* Figma: Translucents Dark/Black-16 */
+}
+
+/* Disabled active track */
+.toggle-root[data-disabled='true'][data-checked='true'] .toggle-track {
+  background-color: rgba(0, 0, 0, 0.16);/* Figma: Translucents Dark/Black-16 */
+  border-color: transparent;
+}
+
+/* Thumb: 10×10 circle */
+.toggle-thumb {
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-round);
+  background-color: #9A9EAB;            /* Figma: Base/Base-300 */
+  transition: left 0.2s ease, background-color 0.2s ease;
+}
+
+/* Active thumb: white, shifted right */
+.toggle-root[data-checked='true'] .toggle-thumb {
+  left: 10px;
+  background-color: #FFFFFF;            /* Figma: Neutral/White */
+}
+
+/* Disabled inactive thumb */
+.toggle-root[data-disabled='true'][data-checked='false'] .toggle-thumb {
+  background-color: rgba(0, 0, 0, 0.16);/* Figma: Translucents Dark/Black-16 */
+}
+
+/* Disabled active thumb stays white */
+.toggle-root[data-disabled='true'][data-checked='true'] .toggle-thumb {
+  background-color: #FFFFFF;
+}
+
+.toggle-label {
+  font-family: var(--font-body);
+  font-size: 0.875rem;                  /* size/s = 14px */
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+/* ─── Thinking Dots Animation ─── */
+@keyframes thinking-pulse {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40%            { transform: scale(1);   opacity: 1;   }
+}
+.thinking-dot { animation: thinking-pulse 1.4s ease-in-out infinite; }
+.thinking-dot:nth-child(1) { animation-delay: 0s; }
+.thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* ─── Chat Markdown ─── */
+.chat-content h2 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: var(--font-display);
+  color: var(--text-primary);
+  margin: 16px 0 10px;
+}
+.chat-content h2:first-child { margin-top: 0; }
+.chat-content p {
+  color: var(--text-secondary);
+  line-height: 1.65;
+  font-size: 0.875rem;
+  margin-bottom: 8px;
+}
+.chat-content ul { list-style: none; padding: 0; margin-bottom: 12px; }
+.chat-content ul li {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.65;
+  padding: 3px 0 3px 16px;
+  position: relative;
+}
+.chat-content ul li::before {
+  content: '•';
+  position: absolute;
+  left: 4px;
+  color: var(--text-tertiary);
+}
+.chat-content strong { font-weight: 600; color: var(--text-primary); }
+.chat-content .stat-highlight {
+  color: var(--brand);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── *
+ * FilterTag — selectable pill tag for filter sections (Placement, Match Played)
+ * States: default (bordered), selected (brand tint bg + brand text)
+ * ─────────────────────────────────────────────────────────────────────────── */
+.filter-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;          /* xxs / s */
+  border-radius: var(--radius-tag);             /* Figma: semantic/tag = 4px */
+  background-color: transparent;
+  border: 1px solid var(--border-subtle);      /* Figma: border/subtle #E6E7EA */
+  font-family: var(--font-body);
+  font-size: 12px;                              /* size/xs */
+  font-weight: 400;                             /* weight/regular */
+  letter-spacing: 0;
+  line-height: 1.5;
+  color: var(--text-secondary);                 /* text-&-icon/secondary #4F566C */
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.filter-tag:hover {
+  background-color: var(--bg-subtle);           /* Figma: background/element-darker #E6E7EA */
+  border-color: var(--border-default);          /* Figma: border/default #CDCFD5 */
+}
+.filter-tag[data-selected='true'] {
+  background-color: var(--bg-tint);             /* Figma: background/highlighted-tint rgba(23,112,239,0.14) */
+  border-color: transparent;
+  color: var(--brand);                          /* Figma: text-&-icon/brand #1770EF */
+
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * BaristaSelectionPill — hover states
+ * Figma: Barista/ Selection Pill (6042:11)
+ * ─────────────────────────────────────────────────────────────────────────── */
+.barista-pill[data-variant='default']:hover {
+  background-color: var(--bg-tint-light);
+  border-color: var(--border-subtle);
+}
+.barista-pill[data-variant='custom']:hover {
+  background-color: var(--bg-tint-light);
+  border-color: var(--border-default);
+}
+
+/* Barista gradient CTAs now use the Apparatus <Button variant="blueish" /> —
+   the canonical purple → teal gradient. Former .barista-cta / .barista-cta-approve
+   classes removed in favour of the design-system button. */
+
+/* ─────────────────────────────────────────────────────────────────────────── *
+ * VideoCard / VideoCardList — Default, Hover, Selected states
+ * Figma: Video Card Grid 103:23943
+ * ─────────────────────────────────────────────────────────────────────────── */
+.video-card {
+  border: 1px solid var(--border-subtle);         /* Figma: border/subtle #E6E7EA */
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.video-card:hover {
+  border-color: #F7F7F7;                          /* Figma: interactive/border/hover */
+  box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.08);  /* Figma: Shadow/Normal */
+}
+.video-card-selected,
+.video-card-selected:hover {
+  border-color: var(--brand);                     /* Figma: interactive/border/brand #1770EF */
+  box-shadow: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── *
+ * RangeSlider — dual-handle range slider
+ * ─────────────────────────────────────────────────────────────────────────── */
+.range-slider {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+.range-slider-labels {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: var(--size-xs);
+  line-height: 1.5;
+  color: var(--base-700);
+}
+.range-slider-labels .range-value {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+.range-slider-labels .range-sep {
+  font-family: var(--font-body);
+  font-weight: 400;
+}
+.range-slider-track {
+  position: relative;
+  width: 100%;
+  height: 16px;
+  display: flex;
+  align-items: center;
+}
+.range-slider-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--bg-subtle);
+  border-radius: 11px;
+}
+.range-slider-fill {
+  position: absolute;
+  height: 2px;
+  background: var(--brand);
+  border-radius: 12px;
+}
+.range-slider-thumb {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: white;
+  border: 1.5px solid var(--brand);
+  cursor: grab;
+  touch-action: none;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+.range-slider-thumb:active {
+  cursor: grabbing;
+}
+.range-slider-thumb::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand);
+  transform: translate(-50%, -50%);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── *
+ * FilterDialog — modal filter panel
+ *
+ * Structure mirrors Figma node 6425:222911:
+ *   Dialog (white, rounded-16)
+ *     ├── Header (h-56, px-20)
+ *     ├── Body (border-top, flex row, px-20)
+ *     │   ├── Sidebar (w-200, pt-20 pb-12, relative for indicator)
+ *     │   ├── Divider (1px vertical)
+ *     │   └── Content scroll (flex-1, pt-20 pb-12)
+ *     │       └── Surface panel (bg: neutral/surface, rounded-8, p-8, gap-12)
+ *     │           ├── Card: Game Mode (bg: white, rounded-8, p-8)
+ *     │           ├── Card: Map
+ *     │           ├── Card: Match Duration
+ *     │           ├── Card: Placement
+ *     │           ├── Card: Match Played
+ *     │           └── Card: Shop During Gameplay
+ *     └── Footer (border-top, p-20)
+ * ─────────────────────────────────────────────────────────────────────────── */
+.filter-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 35px;
+  background: rgba(0, 0, 0, 0.3);
+}
+.filter-dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 772px;
+  height: 750px;
+  max-height: calc(100vh - 70px);
+  background: var(--bg-elements);
+  border-radius: var(--radius-2xl);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.filter-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: 56px;
+  flex-shrink: 0;
+}
+.filter-dialog-title {
+  flex: 1;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--size-m);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+.filter-dialog-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.filter-dialog-close:hover {
+  color: var(--text-primary);
+}
+
+/* ── Body (Main Container: HORIZONTAL, spacing=16, border-top=1px) ───────  */
+.filter-dialog-body {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  border-top: 1px solid var(--bg-subtle);
+}
+
+/* Row inside body: sidebar + content (sidebar has border-right, no gap needed) */
+.filter-dialog-row {
+  display: flex;
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────  */
+.filter-sidebar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 240px;
+  flex-shrink: 0;
+  padding: 20px;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-subtle, var(--bg-subtle));
+}
+.filter-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius-m);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--size-s);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.filter-sidebar-item:hover {
+  background: var(--bg-tint-light);
+}
+.filter-sidebar-item[data-active='true'] {
+  background: var(--bg-tint);
+  color: var(--brand);
+}
+.filter-sidebar-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--text-secondary); /* Base/600 #4F566C — different from text (Base/700) */
+}
+.filter-sidebar-item[data-active='true'] .filter-sidebar-item-icon {
+  color: var(--brand); /* Brand Blue/500 #1770EF when active */
+}
+
+/* Blue indicator bar — absolute within dialog root (Figma: x=0, y=77) */
+.filter-sidebar-indicator {
+  position: absolute;
+  left: 0;
+  width: 4px;
+  height: 37px;
+  background: var(--brand);
+  border-radius: 0 11px 12px 0;
+  transition: top 0.2s ease;
+  z-index: 10;
+}
+
+/* ── Content scroll area ─────────────────────────────────────────────────  */
+.filter-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+/* Surface-colored panel that wraps all filter cards */
+.filter-surface-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+  gap: 12px;
+  padding: 20px;
+  border-radius: 0;
+  background: var(--bg-page); /* Neutral/Surface #F1F1F1 */
+}
+
+/* Individual white filter card (Game Mode, Map, etc.) */
+.filter-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--radius-m);
+  background: var(--bg-elements);
+}
+
+/* Toggle card — reduced vertical padding (Figma: px=12, py=8) */
+.filter-card-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-m);
+  background: var(--bg-elements);
+}
+
+/* Section header (GAME MODE, MAP, etc.) */
+.filter-section-header {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  opacity: 0.8;
+  line-height: normal;
+}
+
+/* Checkbox grid — 2-column layout */
+.filter-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.filter-checkbox-grid-span2 {
+  grid-column: 1 / span 2;
+}
+
+/* Tag pills row */
+.filter-tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Toggle row — header + toggle on same line */
+.filter-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────  */
+.filter-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-top: 1px solid var(--bg-subtle);
+  flex-shrink: 0;
+}
+.filter-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.filter-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.filter-selected-count {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--size-s);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* ── Filter-specific checkbox (16px control, 12px label, 7px gap) ────────  */
+/* Figma: CheckList component — 564:34023                                    */
+.filter-checkbox {
+  gap: 7px;
+}
+.filter-checkbox .checkbox-control {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  border-width: 1.5px;
+  border-color: var(--text-secondary); /* Figma: Base/Base-600 #4F566C */
+}
+.filter-checkbox .checkbox-label {
+  font-family: var(--font-body);
+  font-size: 12px;                     /* size/xs */
+  font-weight: 400;                    /* Regular when unchecked */
+  letter-spacing: 0;
+  line-height: 1.5;
+  color: var(--text-secondary);        /* Figma: text-&-icon/secondary #4F566C */
+}
+/* Checked: label becomes Medium weight (Figma Variant3) */
+.filter-checkbox[data-checked='true'] .checkbox-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+/* Checked control: brand fill, no border */
+.filter-checkbox[data-checked='true'] .checkbox-control {
+  border-color: transparent;
+}
+
+/* ─── Radiologist Flow — Event Type Tags ─── */
+.event-tag-kill {
+  background-color: var(--error-bg);
+  color: var(--error);
+}
+.event-tag-winner {
+  background-color: var(--success-bg);
+  color: var(--success);
+}
+.event-tag-loading-error {
+  background-color: var(--error-bg);
+  color: var(--error);
+}
+.event-tag-customization {
+  background-color: var(--success-bg);
+  color: var(--success);
+}
+.event-tag-match-start {
+  background-color: var(--success-bg);
+  color: var(--success);
+}
+.event-tag-death {
+  background-color: var(--error-bg);
+  color: var(--error);
+}
+.event-tag-loot {
+  background-color: var(--notice-bg);
+  color: var(--notice);
+}
+
+/* ─── Radiologist Flow — Session Side Panel ─── */
+.session-panel {
+  transform: translateX(100%);
+  transition: transform 300ms ease-in-out;
+}
+.session-panel-active {
+  transform: translateX(0);
+}
+
+.flyout-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.flyout-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.flyout-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--border-default);
+  border-radius: 9999px;
+}
+
+/* ─── Radiologist Flow — Suggestions Dropdown ─── */
+.suggestions-dropdown {
+  animation: dropdown-in 150ms ease-out;
+}
+
+/* ─── Radiologist Flow — Stat card color variants ─── */
+.stat-card-success {
+  color: var(--success);
+}
+.stat-card-error {
+  color: var(--error);
+}
+
+/* ─── Radiologist Flow — Playlist card states ─── */
+/* Figma: List Small/Sessions — 887:30492                                    */
+.playlist-video-card {
+  transition: background-color 0.15s;
+}
+.playlist-video-card:hover {
+  background-color: #F7F7F7;                     /* Figma: interactive/bg/hover */
+}
+.playlist-card-active,
+.playlist-card-active:hover {
+  background-color: rgba(23, 112, 239, 0.07);   /* Figma: interactive/bg/brand-tint-hover */
+}
+
+/* ─── Radiologist Flow — Event timeline item hover + selected ─── */
+.timeline-item-hover {
+  border-radius: 8px;
+  transition: background-color 150ms ease;
+}
+.timeline-item-hover:hover {
+  background-color: var(--bg-tint-light);
+}
+.timeline-item-selected {
+  background-color: var(--bg-tint);
+  border-radius: 8px;
+}
+
+/* ─── Radiologist Flow — Video player overlay hover ─── */
+.video-player-hover:hover .video-play-btn {
+  opacity: 1;
+  transform: scale(1.05);
+}
+.video-play-btn {
+  opacity: 0.85;
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+/* ─── Radiologist Flow — Video control button hover (Figma: bg #F5F5F5 on hover) ─── */
+.video-control-btn {
+  transition: background-color 150ms ease;
+}
+.video-control-btn:hover {
+  background-color: var(--bg-page-pale, #F5F5F5);
+}
+
+/* ─── Oracle Flow — Responsive chat content width ─── */
+/* Figma spec: 760px content inside 1160px container (65.5%).
+   Scales proportionally on wider viewports, capped at 960px. */
+.oracle-chat-content {
+  width: 65.5%;
+  min-width: 560px;
+  max-width: 960px;
+}
+
+/* ─── Oracle Flow — Topbar tab hover ─── */
+.oracle-tab {
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: opacity 150ms ease;
+}
+.oracle-tab:hover {
+  opacity: 0.8;
+}
+
+/* ─── Oracle Flow — Input overlay with fade-behind effect ─── */
+.oracle-input-overlay {
+  z-index: 2;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--bg-page) 24%
+  );
+  padding-top: 32px;
+}
+
+/* ─── Oracle Flow — Shimmer animation for AI thinking state ─── */
+/* ─── Oracle Flow — Thinking step spinner ─── */
+@keyframes oracle-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+.oracle-step-spinner {
+  animation: oracle-spin 0.8s linear infinite;
+}
+
+/* Step entrance fade-in */
+@keyframes oracle-step-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.oracle-step-enter {
+  animation: oracle-step-fade-in 300ms ease-out;
+}
+
+/* ─── Oracle Flow — Shimmer text effect on active thinking step ─── */
+@keyframes oracle-text-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.oracle-shimmer-text {
+  background: linear-gradient(
+    90deg,
+    var(--text-secondary) 25%,
+    var(--text-placeholder) 50%,
+    var(--text-secondary) 75%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: oracle-text-shimmer 2s ease-in-out infinite;
+}
+
+/* ─── Oracle Flow — Like/Dislike button ─── */
+.like-dislike-btn {
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 150ms ease;
+  border: none;
+  background: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.like-dislike-btn:hover {
+  color: var(--text-secondary);
+}
+.like-dislike-btn[data-active="true"] {
+  color: var(--brand);
+}
+
+/* ─── Oracle Flow — Action feedback bar copy icon hover ─── */
+.oracle-copy-btn {
+  color: var(--text-tertiary);
+  opacity: 0.8;
+  cursor: pointer;
+  transition: color 150ms ease, opacity 150ms ease;
+  border: none;
+  background: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.oracle-copy-btn:hover {
+  color: var(--text-secondary);
+  opacity: 1;
+}
+
+/* ─── Oracle Flow — Sources expand button ─── */
+.oracle-sources-title {
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+.oracle-sources-title:hover {
+  color: var(--brand);
+}

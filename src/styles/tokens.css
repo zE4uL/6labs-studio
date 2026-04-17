@@ -1,0 +1,117 @@
+/* ═══════════════════════════════════════════════════════════════════════ */
+/* AUTO-GENERATED from Figma Apparatus variables — Button node 12943:1310 */
+/* Source: figma.com/design/Nt21OzTRlJKgvSLMoSxTyT/Apparatus             */
+/* Synced: 2026-04-09 via Claude Code MCP                                 */
+/* ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ─── Typography ─── */
+  --displayfont: 'Bricolage Grotesque', sans-serif;
+  --weight-semibold: 600;
+  --size-xs: 12px;
+  --size-s: 14px;
+  --size-m: 16px;
+
+  /* ─── Semantic / Button ─── */
+  --semantic-button-medium: 6px;
+  --semantic-button-medium-gap: 8px;
+  --semantic-button-medium-paddingx: 16px;
+  --semantic-button-medium-paddingy: 8px;
+
+  /* ─── Primary ─── */
+  --primary-text-default: #FFFFFF;
+  --primary-bg-default: #1770EF;
+  --primary-bg-hover: #4D8FF5;
+  --primary-bg-pressed: #0D5ED4;
+  --primary-bg-focusring: rgba(23, 112, 239, 0.4);
+  --primary-text-disabled: #818696;
+  --primary-bg-disabled: #CDCFD5;
+
+  /* ─── Secondary ─── */
+  --secondary-text-default: #030D2D;
+  --secondary-bg-default: #F7F7F7;
+  --secondary-border-default: #E6E7EA;
+  --secondary-bg-hover: rgba(23, 112, 239, 0.07);
+  --secondary-border-hover: #E6E7EA;
+  --secondary-bg-pressed: rgba(23, 112, 239, 0.14);
+  --secondary-border-pressed: #E6E7EA;
+  --secondary-bg-focus: #F1F1F1;
+  --secondary-text-disabled: #9A9EAB;
+  --secondary-bg-disabled: #F7F7F7;
+  --secondary-border-disabled: #E6E7EA;
+
+  /* ─── Tertiary ─── */
+  --tertiary-text-default: #030D2D;
+  --tertiary-bg-default: #F7F7F7;
+  --tertiary-border-default: #E6E7EA;
+  --tertiary-bg-hover: #F7F7F7;
+  --tertiary-border-hover: #CDCFD5;
+  --tertiary-bg-pressed: #E6E7EA;
+  --tertiary-border-pressed: #B3B6C0;
+  --tertiary-bg-focusring: rgba(23, 112, 239, 0.4);
+  --tertiary-text-disabled: #9A9EAB;
+  --tertiary-border-disabled: #E6E7EA;
+
+  /* ─── Outline ─── */
+  --outline-text-default: #1770EF;
+  --outline-border-default: #1770EF;
+  --outline-bg-hover: rgba(23, 112, 239, 0.07);
+  --outline-bg-pressed: rgba(23, 112, 239, 0.14);
+  --outline-text-disabled: #9A9EAB;
+  --outline-border-disabled: #E6E7EA;
+
+  /* ─── Outline Complementary ─── */
+  --outline-comp-text-default: #7B4CFF;
+  --outline-comp-border-default: #7B4CFF;
+  --outline-comp-bg-hover: rgba(123, 76, 255, 0.07);
+  --outline-comp-border-hover: #7B4CFF;
+  --outline-comp-bg-pressed: rgba(194, 5, 104, 0.07);
+  --outline-comp-border-pressed: #7B4CFF;
+  --outline-comp-text-disabled: #9A9EAB;
+  --outline-comp-border-disabled: #E6E7EA;
+
+  /* ─── Danger ─── */
+  --danger-text-default: #FFFFFF;
+  --danger-bg-default: #C9392A;
+  --danger-bg-hover: #DE5A48;
+  --danger-bg-pressed: #A52E20;
+  --danger-focusring: rgba(201, 57, 42, 0.4);
+  --danger-text-disabled: #818696;
+  --danger-bg-disabled: #CDCFD5;
+
+  /* ─── Blueish ─── */
+  --blueish-text-default: #FFFFFF;
+  --blueish-text-disabled: #9A9EAB;
+  --blueish-bg-disabled: #CDCFD5;
+
+  /* ─── Link ─── */
+  --link-text-default: #1770EF;
+  --link-text-hover: #3589FF;
+  --link-text-pressed: #0D5ED4;
+  --link-text-focus: #1770EF;
+  --link-text-disabled: #9A9EAB;
+
+  /* ─── Translucent ─── */
+  --translucent-text-default: rgba(0, 0, 0, 0.70);
+  --translucent-bg-default: rgba(255, 255, 255, 0.20);
+  --translucent-border-default: #E6E7EA;
+  --translucent-text-hover: rgba(0, 0, 0, 0.80);
+  --translucent-bg-hover: rgba(255, 255, 255, 0.30);
+  --translucent-border-hover: #CDCFD5;
+  --translucent-bg-pressed: rgba(255, 255, 255, 0.40);
+  --translucent-bg-focus: rgba(255, 255, 255, 0.20);
+  --translucent-text-disabled: rgba(0, 0, 0, 0.50);
+  --translucent-bg-disabled: rgba(255, 255, 255, 0.10);
+  --translucent-border-disabled: #E6E7EA;
+
+  /* ─── Transparent ─── */
+  --transparent-text-default: #000000;
+  --transparent-bg-hover: rgba(0, 0, 0, 0.08);
+  --transparent-bg-pressed: rgba(0, 0, 0, 0.16);
+  --transparent-bg-focus: rgba(0, 0, 0, 0.08);
+  --transparent-text-disabled: #9A9EAB;
+
+  /* ─── Shared ─── */
+  --button-label-on-brand: #FFFFFF;
+  --background-container: #FFFFFF;
+}
