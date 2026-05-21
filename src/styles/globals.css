@@ -200,6 +200,17 @@
   background-color: var(--bg-tint-light);
 }
 
+.bq-toggle-row {
+  transition: background-color 120ms ease;
+}
+.bq-toggle-row:hover {
+  background-color: var(--bg-tint-light);
+}
+.bq-toggle-row:hover .bq-toggle-affordance {
+  background-color: var(--bg-tint);
+  color: var(--text-primary);
+}
+
 /* ─── Sidebar Nav Active/Hover Gradient (matches Figma radial) ─── */
 .nav-active-gradient,
 .nav-hover-gradient:hover {
@@ -753,6 +764,14 @@ textarea { resize: none; font-family: var(--font-body); }
 .input-xl .input-element          { font-size: 1rem; } /* size/m = 16px */
 .input-xl .input-icon-slot        { width: 24px; height: 24px; }
 .input-xl .input-icon-slot > svg  { width: 24px; height: 24px; }
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* ActionMenuItem — Chat composer "+" flyout row                               */
+/* ─────────────────────────────────────────────────────────────────────────── */
+.action-menu-item                       { background-color: transparent; }
+.action-menu-item:hover:not(:disabled)  { background-color: var(--bg-tint); }
+.action-menu-item[data-active="true"]   { background-color: var(--bg-tint); }
+.action-menu-item:disabled              { background-color: transparent; }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* InputFieldConsole — Apparatus spec                                          */

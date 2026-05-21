@@ -17,6 +17,7 @@ import { JiraIcon } from '../icons/connectors/JiraIcon'
 import { SlackIcon } from '../icons/connectors/SlackIcon'
 import { DiscordIcon } from '../icons/connectors/DiscordIcon'
 import { FacebookAdsIcon } from '../icons/connectors/FacebookAdsIcon'
+import { BigQueryIcon } from '../icons/connectors/BigQueryIcon'
 import type { ConnectorDetail } from './ConnectorDetailView'
 
 export const CONNECTORS: (ConnectorDetail & { description: string; row: number })[] = [
@@ -129,6 +130,33 @@ export const CONNECTORS: (ConnectorDetail & { description: string; row: number }
     ],
   },
   {
+    id: 'bigquery',
+    icon: <BigQueryIcon size={40} />,
+    name: 'BigQuery',
+    description:
+      'Pull warehouse tables into Oracle so agents can answer questions against your live analytics — campaigns, monetization, retention, anything you ETL into BQ.',
+    row: 1,
+    tags: [
+      { label: 'Data warehouse', variant: 'neutral' },
+      { label: 'GCP', variant: 'brand' },
+    ],
+    iconTint: 'rgba(66, 133, 244, 0.07)',
+    about:
+      'BigQuery is Google Cloud’s serverless data warehouse. Connecting it lets 6labs agents query your live analytics tables alongside gameplay evidence — so Oracle can answer business questions grounded in the same data your analyst team trusts.',
+    benefits: [
+      'Ask Oracle questions against your live BQ tables, no SQL required',
+      'Cross-reference gameplay findings with revenue and retention data',
+      'Reuse the warehouse models your analyst team already maintains',
+      'Tables are read-only — 6labs never writes back to your warehouse',
+    ],
+    steps: [
+      'In GCP, generate a service-account key with BigQuery Data Viewer access',
+      'Upload the JSON — we read the project ID from it automatically',
+      'We authenticate, connect, and import your tables and column schemas',
+      'Add table + column descriptions so Oracle’s answers stay grounded',
+    ],
+  },
+  {
     id: 'facebook-ads',
     icon: <FacebookAdsIcon size={40} />,
     name: 'Facebook Ads',
@@ -182,8 +210,8 @@ export function ContextConnectorsView({ className, onSelectConnector }: ContextC
 
       {/* Connector grid */}
       <div className="w-full mt-[60px] flex flex-col gap-l">
-        {/* Row 1: 2 columns — 390px each, 20px gap */}
-        <div className="grid grid-cols-2 gap-l">
+        {/* Row 1: 3 columns — featured (BigQuery, AppsFlyer, Jira) */}
+        <div className="grid grid-cols-3 gap-l">
           {row1.map((c) => (
             <ConnectorCard
               key={c.id}

@@ -17,7 +17,7 @@ export default defineConfig({
       '@': resolve(__dirname, './src')
     }
   },
-  base: '/studio/',
+  base: '/',
   test: {
     projects: [{
       extends: true,

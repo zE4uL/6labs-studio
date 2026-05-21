@@ -13,7 +13,7 @@
  * Synced: 2026-04-06
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Sidebar } from '../components/organisms/Sidebar'
 import { HeroSection, type Agent } from '../components/organisms/HeroSection'
 import { VideosContainer } from '../components/organisms/VideosContainer'
@@ -25,13 +25,28 @@ import { SessionDetailsPage } from '../components/organisms/SessionDetailsPage'
 import { ContextUploadsView } from '../components/organisms/ContextUploadsView'
 import { ContextConnectorsView, CONNECTORS } from '../components/organisms/ContextConnectorsView'
 import { ConnectorDetailView } from '../components/organisms/ConnectorDetailView'
+import {
+  BigQueryOnboardingModal,
+  type BigQueryOnboardingState,
+} from '../components/organisms/BigQueryOnboardingModal'
+import { BigQueryDetailView } from '../components/organisms/BigQueryDetailView'
+import {
+  disconnectBigQuery,
+  getMockBigQueryConnection,
+  markBigQueryConnected,
+  markBigQuerySyncComplete,
+  onConnectorOnboardingRequest,
+  useBigQueryConnection,
+} from '../lib/state/connectorsStore'
 import { PageTopbar } from '../components/molecules/PageTopbar'
+import { PopupModal } from '../components/molecules/PopupModal'
 import type { SessionData } from '../lib/types/radiologist'
 import type { HistoryItem } from '../components/organisms/Sidebar'
 import { BaristaSidePanel } from '../components/organisms/BaristaSidePanel'
 import { BaristaSetupPage } from '../components/organisms/BaristaSetupPage'
 import { BaristaTaskCreateDialog } from '../components/organisms/BaristaTaskCreateDialog'
 import { BaristaTaskDetailPage } from '../components/organisms/BaristaTaskDetailPage'
+import { BaristaPage } from '../components/organisms/BaristaPage'
 import { useBarista } from '../state/BaristaContext'
 
 type ActiveNav = 'home' | 'barista' | 'radiologist' | 'oracle' | 'forecaster' | 'coach' | 'guardian' | 'uploads' | 'connectors'
@@ -44,6 +59,59 @@ const ORACLE_SUGGESTIONS = [
   'Where did the player lose the most HP, and what caused it?',
 ]
 
+// ─── BigQuery onboarding step driver ─────────────────────────────────────────
+// Walks through the 4 stages with brief delays to give the UI a real-feeling
+// pulse. In the prototype each stage just resolves on a timer — the real
+// implementation would await network calls and surface their errors through
+// `onError(stepIndex, message?)`.
+
+const BQ_STEP_DELAYS_MS = [900, 700, 600, 1100] // connecting · testing · access · import
+
+function runBigQueryOnboardingSteps({
+  projectId,
+  orgWideAccess: _orgWideAccess,
+  onStep,
+  onSuccess,
+  onError,
+}: {
+  projectId: string
+  orgWideAccess: boolean
+  onStep: (stepIndex: number) => void
+  onSuccess: (summary: {
+    projectId: string
+    tableCount: number
+    verdict: 'GREEN' | 'YELLOW' | 'RED'
+    verdictReason: string
+  }) => void
+  onError: (stepIndex: number, errorMessage?: string) => void
+}) {
+  let stepIndex = 0
+  const advance = () => {
+    onStep(stepIndex)
+    // Prototype-only "happy path" — fail at step 1 if the user typed a clearly
+    // bogus project ID, so the error state is reachable without code edits.
+    if (stepIndex === 1 && /not-?found|fake|test-error/i.test(projectId)) {
+      onError(1)
+      return
+    }
+    if (stepIndex >= BQ_STEP_DELAYS_MS.length) {
+      const mock = getMockBigQueryConnection()
+      onSuccess({
+        projectId,
+        tableCount: mock.tables.length,
+        verdict: mock.verdict,
+        verdictReason: mock.verdictReason,
+      })
+      return
+    }
+    window.setTimeout(() => {
+      stepIndex += 1
+      advance()
+    }, BQ_STEP_DELAYS_MS[stepIndex])
+  }
+  advance()
+}
+
 export function HomePage() {
   const barista = useBarista()
   const [activeNav, setActiveNav] = useState<ActiveNav>('home')
@@ -51,6 +119,47 @@ export function HomePage() {
   const [language, setLanguage] = useState('EN')
   const [heroAgent, setHeroAgent] = useState<Agent>('radiologist')
   const [selectedConnectorId, setSelectedConnectorId] = useState<string | null>(null)
+  // Unsaved-changes guard for the connector detail view.
+  const [connectorDirty, setConnectorDirty] = useState(false)
+  const [pendingExit, setPendingExit] = useState<(() => void) | null>(null)
+  const [connectorResetSignal, setConnectorResetSignal] = useState(0)
+  const requestConnectorExit = (action: () => void) => {
+    if (connectorDirty) {
+      setPendingExit(() => action)
+    } else {
+      action()
+    }
+  }
+  const [bigQueryModalState, setBigQueryModalState] =
+    useState<BigQueryOnboardingState | null>(null)
+  const [bigQueryProjectId, setBigQueryProjectId] = useState<string>('')
+  const [bigQueryProgress, setBigQueryProgress] = useState<{
+    step: number
+    errorAtStep?: number
+    errorMessage?: string
+  }>({ step: 0 })
+  const [bigQuerySummary, setBigQuerySummary] = useState<{
+    projectId: string
+    tableCount: number
+    verdict: 'GREEN' | 'YELLOW' | 'RED'
+    verdictReason: string
+  } | null>(null)
+  const bigQueryConnection = useBigQueryConnection()
+
+  // Listen for "Add connector" picks from the chat flyout. BigQuery opens the
+  // dedicated modal in place; everything else navigates to the Connectors page
+  // (and its detail view) so the user can read about the integration.
+  useEffect(() => {
+    return onConnectorOnboardingRequest((connectorId) => {
+      if (connectorId === 'bigquery') {
+        setBigQueryProjectId('')
+        setBigQueryModalState('idle')
+        return
+      }
+      setActiveNav('connectors')
+      setSelectedConnectorId(connectorId)
+    })
+  }, [])
 
   // ── Oracle history state ──
   const [oracleHistory, setOracleHistory] = useState<HistoryItem[]>([])
@@ -102,6 +211,9 @@ export function HomePage() {
 
   const renderContent = () => {
     switch (activeNav) {
+      case 'barista':
+        return <BaristaPage />
+
       case 'oracle': {
         const runningTurn = [...barista.turns]
           .reverse()
@@ -176,12 +288,46 @@ export function HomePage() {
         const selectedConnector = selectedConnectorId
           ? CONNECTORS.find((c) => c.id === selectedConnectorId)
           : null
+        const openBigQueryModal = () => {
+          setBigQueryProjectId(
+            bigQueryConnection.kind !== 'not-connected'
+              ? bigQueryConnection.projectId
+              : '',
+          )
+          setBigQueryModalState('idle')
+        }
+        const handleBigQueryRefresh = () => {
+          if (bigQueryConnection.kind !== 'connected') return
+          markBigQueryConnected({
+            projectId: bigQueryConnection.projectId,
+            syncing: true,
+          })
+          window.setTimeout(() => markBigQuerySyncComplete(), 1500)
+        }
         if (selectedConnector) {
           return (
-            <div className="min-h-full" style={{ backgroundColor: 'var(--bg-page)' }}>
-              <PageTopbar title="Connectors" onBack={() => setSelectedConnectorId(null)} />
-              <div className="px-[32px] pt-[32px] pb-[64px]">
-                <ConnectorDetailView connector={selectedConnector} />
+            <div className="min-h-full flex flex-col" style={{ backgroundColor: 'var(--bg-page)' }}>
+              <PageTopbar
+                title="Connectors"
+                onBack={() => requestConnectorExit(() => setSelectedConnectorId(null))}
+              />
+              <div className="px-[32px] pt-[32px] pb-[80px] flex-1 flex flex-col">
+                {selectedConnector.id === 'bigquery' ? (
+                  <BigQueryDetailView
+                    connector={selectedConnector}
+                    connection={bigQueryConnection}
+                    onConnect={openBigQueryModal}
+                    onReconnect={openBigQueryModal}
+                    onReuploadCredentials={openBigQueryModal}
+                    onRefresh={handleBigQueryRefresh}
+                    onRetry={handleBigQueryRefresh}
+                    onDisconnect={disconnectBigQuery}
+                    onDirtyChange={setConnectorDirty}
+                    resetSignal={connectorResetSignal}
+                  />
+                ) : (
+                  <ConnectorDetailView connector={selectedConnector} />
+                )}
               </div>
             </div>
           )
@@ -248,19 +394,23 @@ export function HomePage() {
             // Pause Barista generation if user switches screens mid-turn
             if (nav !== activeNav) barista.notifyScreenSwitch()
             if (nav === 'barista') {
-              // Barista opens its right panel against the Oracle center
-              setActiveNav('oracle')
+              setActiveNav('barista')
               setActiveHistoryId(null)
               if (barista.setupStatus === 'not-set-up') {
                 barista.startSetup()
-              } else {
-                barista.openPanel()
               }
               return
             }
-            setActiveNav(nav)
-            setActiveHistoryId(null)
-            if (nav !== 'connectors') setSelectedConnectorId(null)
+            const applyNav = () => {
+              setActiveNav(nav)
+              setActiveHistoryId(null)
+              if (nav !== 'connectors') setSelectedConnectorId(null)
+            }
+            if (nav !== 'connectors') {
+              requestConnectorExit(applyNav)
+            } else {
+              applyNav()
+            }
           }}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           language={language}
@@ -313,8 +463,9 @@ export function HomePage() {
         {/* Scrollable content */}
         <div className={[
           'relative z-10 h-full',
-          // Results and details views manage their own scrolling
-          activeNav === 'radiologist' && radiologistView !== 'home'
+          // Views that manage their own scrolling
+          (activeNav === 'radiologist' && radiologistView !== 'home') ||
+          activeNav === 'barista'
             ? 'overflow-hidden'
             : 'overflow-y-auto',
         ].join(' ')}>
@@ -391,6 +542,50 @@ export function HomePage() {
           )
         })()}
 
+      {/* BigQuery onboarding modal (prototype — fake network) */}
+      <BigQueryOnboardingModal
+        isOpen={bigQueryModalState !== null}
+        state={bigQueryModalState ?? 'idle'}
+        projectId={bigQueryProjectId}
+        progress={bigQueryProgress}
+        summary={bigQuerySummary ?? undefined}
+        onClose={() => {
+          setBigQueryModalState(null)
+          setBigQueryProgress({ step: 0 })
+          setBigQuerySummary(null)
+        }}
+        onConnect={({ projectId, orgWideAccess }) => {
+          setBigQueryProjectId(projectId)
+          setBigQuerySummary(null)
+          setBigQueryProgress({ step: 0 })
+          setBigQueryModalState('progress')
+          runBigQueryOnboardingSteps({
+            projectId,
+            orgWideAccess,
+            onStep: (step) => setBigQueryProgress({ step }),
+            onSuccess: (summary) => {
+              markBigQueryConnected({ projectId, syncing: true, orgWideAccess })
+              markBigQuerySyncComplete()
+              setBigQuerySummary(summary)
+              setBigQueryModalState('success')
+            },
+            onError: (errorAtStep, errorMessage) => {
+              setBigQueryProgress({ step: errorAtStep, errorAtStep, errorMessage })
+              setBigQueryModalState('failed')
+            },
+          })
+        }}
+        onRetry={() => {
+          setBigQueryProgress({ step: 0 })
+          setBigQueryModalState('idle')
+        }}
+        onDone={() => {
+          setBigQueryModalState(null)
+          setBigQueryProgress({ step: 0 })
+          setBigQuerySummary(null)
+        }}
+      />
+
       {/* Task creation modal */}
       <BaristaTaskCreateDialog
         open={barista.taskDialog.open}
@@ -407,6 +602,24 @@ export function HomePage() {
           setActiveNav('oracle')
           setSearchQuery(data.prompt)
           // Leave the post-run re-open to the user via the schedule banner.
+        }}
+      />
+
+      {/* Unsaved-changes warning when leaving the connector detail view */}
+      <PopupModal
+        isOpen={pendingExit !== null}
+        onClose={() => setPendingExit(null)}
+        title="Discard unsaved changes?"
+        body="Your unsaved table and column descriptions will be lost. This action can't be undone."
+        primaryLabel="Discard changes"
+        primaryVariant="danger"
+        secondaryLabel="Keep editing"
+        onConfirm={() => {
+          const exit = pendingExit
+          setPendingExit(null)
+          setConnectorResetSignal((n) => n + 1)
+          setConnectorDirty(false)
+          exit?.()
         }}
       />
 

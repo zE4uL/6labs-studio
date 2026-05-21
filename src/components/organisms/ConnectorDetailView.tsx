@@ -11,6 +11,10 @@
  */
 
 import type { ReactNode } from 'react'
+import {
+  ConnectionStatusPill,
+  type ConnectionVerdict,
+} from '../atoms/ConnectionStatusPill'
 
 export interface ConnectorDetail {
   id: string
@@ -25,6 +29,10 @@ export interface ConnectorDetail {
 
 interface ConnectorDetailViewProps {
   connector: ConnectorDetail
+  /** Backend tri-state verdict. Collapses to a binary user-facing pill. */
+  verdict?: ConnectionVerdict
+  /** When provided, the Connect button is enabled and calls this on click. */
+  onConnect?: () => void
   className?: string
 }
 
@@ -47,8 +55,11 @@ function CheckIcon() {
 
 export function ConnectorDetailView({
   connector,
+  verdict,
+  onConnect,
   className,
 }: ConnectorDetailViewProps) {
+  const connectEnabled = !!onConnect
   return (
     <div
       className={['flex flex-col w-full', className]
@@ -68,12 +79,15 @@ export function ConnectorDetailView({
 
           {/* Name + tags */}
           <div className="flex flex-col gap-s items-start">
-            <h1
-              className="font-display text-xl font-semibold whitespace-nowrap leading-normal"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              {connector.name}
-            </h1>
+            <div className="flex items-center gap-s">
+              <h1
+                className="font-display text-xl font-semibold whitespace-nowrap leading-normal"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                {connector.name}
+              </h1>
+              {verdict !== undefined && <ConnectionStatusPill verdict={verdict} />}
+            </div>
             <div className="flex gap-xs items-center">
               {connector.tags.map((tag) => (
                 <span
@@ -100,14 +114,16 @@ export function ConnectorDetailView({
           </div>
         </div>
 
-        {/* Connect button (disabled state per Figma) */}
+        {/* Connect button */}
         <button
-          disabled
+          disabled={!connectEnabled}
+          onClick={onConnect}
           className="font-display text-s font-semibold px-xl py-s rounded-[8px] leading-[20px]"
-          style={{
-            backgroundColor: 'var(--border-default)',
-            color: 'var(--text-tertiary)',
-          }}
+          style={
+            connectEnabled
+              ? { backgroundColor: 'var(--brand)', color: 'var(--text-on-brand)' }
+              : { backgroundColor: 'var(--border-default)', color: 'var(--text-tertiary)' }
+          }
         >
           Connect {connector.name}
         </button>

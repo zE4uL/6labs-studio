@@ -1,6 +1,8 @@
 /**
  * PageTopbar — Full-width navigation bar with back arrow + breadcrumb label.
  * Sits above page content, 56px tall, white bg with subtle bottom border.
+ * Sticks to the top of the scroll container so it stays visible while the
+ * page body scrolls. Optional right-side `actions` slot for page-level CTAs.
  *
  * @figmaComponent  Page Topbar
  * @figmaNode       6419:75476
@@ -8,15 +10,19 @@
  * @figmaUrl        https://www.figma.com/design/i9fxQ6pXrgRITEzopoXpWL/6labs?node-id=6419-75476
  */
 
+import type { ReactNode } from 'react'
+
 interface PageTopbarProps {
   title: string
   onBack: () => void
+  /** Optional right-aligned slot for page-level actions (e.g. Save changes). */
+  actions?: ReactNode
 }
 
-export function PageTopbar({ title, onBack }: PageTopbarProps) {
+export function PageTopbar({ title, onBack, actions }: PageTopbarProps) {
   return (
     <div
-      className="w-full h-[56px] flex items-center relative shrink-0"
+      className="w-full h-[56px] flex items-center justify-between sticky top-0 z-30 shrink-0 pr-[20px]"
       style={{
         backgroundColor: 'white',
         borderBottom: '1px solid var(--bg-subtle)',
@@ -24,7 +30,7 @@ export function PageTopbar({ title, onBack }: PageTopbarProps) {
     >
       {/* Back button — positioned at left=20px, vertically centered */}
       <button
-        className="absolute left-[20px] flex gap-[10px] items-center cursor-pointer"
+        className="ml-[20px] flex gap-[10px] items-center cursor-pointer"
         onClick={onBack}
       >
         <div className="size-[24px] rounded-[100px] flex items-center justify-center">
@@ -50,6 +56,10 @@ export function PageTopbar({ title, onBack }: PageTopbarProps) {
           {title}
         </span>
       </button>
+
+      {actions && (
+        <div className="flex items-center gap-s shrink-0">{actions}</div>
+      )}
     </div>
   )
 }

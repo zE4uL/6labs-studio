@@ -6,6 +6,7 @@
 import type { BaristaTask } from '../../state/BaristaContext'
 import { PlayIcon } from '../icons/PlayIcon'
 import { EditIcon } from '../icons/EditIcon'
+import { TrashIcon } from '../icons/TrashIcon'
 import { TaskStatusPill, type TaskStatusPillVariant } from '../atoms/TaskStatusPill'
 
 const FREQUENCY_LABEL: Record<BaristaTask['frequency'], string> = {
@@ -28,6 +29,7 @@ export interface BaristaTaskItemProps {
   onRun?: () => void
   onEdit?: () => void
   onToggleEnabled?: () => void
+  onDelete?: () => void
   className?: string
 }
 
@@ -37,6 +39,7 @@ export function BaristaTaskItem({
   onRun,
   onEdit,
   onToggleEnabled,
+  onDelete,
   className = '',
 }: BaristaTaskItemProps) {
   const lastRunLabel = task.lastRunAt
@@ -113,6 +116,20 @@ export function BaristaTaskItem({
             style={{ color: 'var(--text-secondary)' }}
           >
             <EditIcon size={12} />
+          </button>
+        )}
+        {onDelete && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete()
+            }}
+            aria-label="Delete task"
+            className="w-[24px] h-[24px] flex items-center justify-center rounded-[4px]"
+            style={{ color: 'var(--text-secondary)' }}
+          >
+            <TrashIcon size={12} />
           </button>
         )}
         {onToggleEnabled && (

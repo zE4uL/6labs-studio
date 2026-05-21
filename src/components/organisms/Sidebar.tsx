@@ -368,8 +368,8 @@ export function Sidebar({
           'flex flex-col items-start justify-center overflow-visible shrink-0 relative',
           'border-t border-border-subtle',
           collapsed
-            ? 'gap-m w-[60px]'
-            : 'gap-m p-s w-[280px]',
+            ? 'gap-m py-m w-[60px]'
+            : 'gap-m px-s py-m w-[280px]',
         ].join(' ')}
         ref={profileRef}
       >

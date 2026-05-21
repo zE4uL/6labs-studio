@@ -25,6 +25,8 @@ export interface BaristaTasksViewProps {
   onRunTask: (id: string) => void
   onEditTask: (id: string) => void
   onToggleTask: (id: string) => void
+  /** Optional — enables inline delete action on each task row. */
+  onDeleteTask?: (id: string) => void
   /** Optional — reserved for Phase 2 Manage (dashboard) surface. */
   onManage?: () => void
   className?: string
@@ -37,6 +39,7 @@ export function BaristaTasksView({
   onRunTask,
   onEditTask,
   onToggleTask,
+  onDeleteTask,
   className = '',
 }: BaristaTasksViewProps) {
   if (tasks.length === 0) {
@@ -104,6 +107,7 @@ export function BaristaTasksView({
             onRun={() => onRunTask(task.id)}
             onEdit={() => onEditTask(task.id)}
             onToggleEnabled={() => onToggleTask(task.id)}
+            onDelete={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
           />
         ))}
       </div>

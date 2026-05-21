@@ -21,12 +21,22 @@
  * Synced: 2026-04-05
  */
 
-import { useState, useRef, useEffect, type ReactNode, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useState, useRef, type ReactNode, type KeyboardEvent } from 'react'
 import Button from './Button'
-import { SelectDropdown, type SelectGroup } from '../molecules/SelectDropdown'
 import { DirectionsArrowIcon } from '../icons/DirectionsArrowIcon'
 import { DropdownArrowIcon } from '../icons/DropdownArrowIcon'
 import { BlueStacksIcon } from '../icons/BlueStacksIcon'
+import { SelectDropdown } from '../molecules/SelectDropdown'
+import {
+  ChatActionMenuFlyout,
+  type ConnectorOption,
+} from '../molecules/ChatActionMenuFlyout'
+import {
+  useOnboardedConnectors,
+  useAvailableConnectors,
+  requestConnectorOnboarding,
+} from '../../lib/state/connectorsStore'
+import { BigQueryIcon } from '../icons/connectors/BigQueryIcon'
 
 export type InputFieldConsoleType = 'default' | 'mini'
 
@@ -53,6 +63,12 @@ export interface InputFieldConsoleProps {
   selectedPlatform?: string
   /** Called when a platform is selected */
   onPlatformChange?: (value: string) => void
+  /** Onboarded connectors shown in the flyout's Connectors submenu */
+  connectors?: ConnectorOption[]
+  /** Called with the new set of enabled connector ids */
+  onConnectorsChange?: (ids: string[]) => void
+  /** Called when the user attaches a PDF from the flyout */
+  onAttachFile?: (file: File) => void
   /** Number of visible rows for default type */
   rows?: number
   /** Focus/blur events for suggestion dropdown control */
@@ -77,6 +93,9 @@ export default function InputFieldConsole({
   platforms = DEFAULT_PLATFORMS,
   selectedPlatform,
   onPlatformChange,
+  connectors = [],
+  onConnectorsChange,
+  onAttachFile,
   rows = 2,
   onFocus,
   onBlur,
@@ -84,27 +103,52 @@ export default function InputFieldConsole({
 }: InputFieldConsoleProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const platformRef = useRef<HTMLDivElement>(null)
+  const sourceRootRef = useRef<HTMLDivElement>(null)
   const isMini = type === 'mini'
   const hasValue = value.trim().length > 0
 
   const [internalPlatform, setInternalPlatform] = useState(platforms[0]?.value ?? '')
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-
   const activePlatformValue = selectedPlatform ?? internalPlatform
   const activePlatform = platforms.find((p) => p.value === activePlatformValue) ?? platforms[0]
 
-  // Close dropdown on outside click
+  const [sourceOpen, setSourceOpen] = useState(false)
+
   useEffect(() => {
-    if (!dropdownOpen) return
-    const handleClick = (e: MouseEvent) => {
-      if (platformRef.current && !platformRef.current.contains(e.target as Node)) {
-        setDropdownOpen(false)
-      }
+    if (!sourceOpen) return
+    const handleDocClick = (e: MouseEvent) => {
+      if (!sourceRootRef.current) return
+      if (!sourceRootRef.current.contains(e.target as Node)) setSourceOpen(false)
     }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [dropdownOpen])
+    document.addEventListener('mousedown', handleDocClick)
+    return () => document.removeEventListener('mousedown', handleDocClick)
+  }, [sourceOpen])
+
+  // Per-chat enabled-connector ids. We hold this locally so each chat composer
+  // has its own toggle state, but the *list* of onboarded connectors comes from
+  // the global store so they show up the moment onboarding finishes.
+  const [enabledConnectorIds, setEnabledConnectorIds] = useState<string[]>([])
+  const onboarded = useOnboardedConnectors()
+  const available = useAvailableConnectors()
+  const composedConnectors: ConnectorOption[] = useMemo(() => {
+    const fromStore = onboarded.map((c) => ({
+      id: c.id,
+      label: c.label,
+      secondary: c.secondary,
+      icon: c.id === 'bigquery' ? <BigQueryIcon size={20} /> : undefined,
+      enabled: enabledConnectorIds.includes(c.id),
+    }))
+    // Allow callers to inject extra connector options (e.g. for Storybook).
+    const propIds = new Set(connectors.map((c) => c.id))
+    return [
+      ...fromStore.filter((c) => !propIds.has(c.id)),
+      ...connectors,
+    ]
+  }, [onboarded, enabledConnectorIds, connectors])
+
+  const handleConnectorsChange = (ids: string[]) => {
+    setEnabledConnectorIds(ids)
+    onConnectorsChange?.(ids)
+  }
 
   const handleKeyDown = (e: KeyboardEvent) => {
     if (isMini && e.key === 'Enter' && !e.shiftKey && hasValue) {
@@ -131,18 +175,8 @@ export default function InputFieldConsole({
     } else {
       setInternalPlatform(val)
     }
-    setDropdownOpen(false)
+    setSourceOpen(false)
   }
-
-  const dropdownGroups: SelectGroup[] = [
-    {
-      items: platforms.map((p) => ({
-        value: p.value,
-        label: p.label,
-        icon: p.icon,
-      })),
-    },
-  ]
 
   return (
     <div
@@ -184,30 +218,58 @@ export default function InputFieldConsole({
 
       {/* Actions row */}
       <div className="input-console-actions">
-        {/* Left: Platform selector — Button tertiary medium pill + dropdown */}
-        <div ref={platformRef} className="relative flex gap-s items-center">
-          <Button
-            variant="tertiary"
-            size="md"
-            pill
-            leftIcon={activePlatform?.icon}
-            rightIcon={<DropdownArrowIcon size={16} />}
-            onClick={(e) => {
-              e.stopPropagation()
-              setDropdownOpen((prev) => !prev)
-            }}
-          >
-            {activePlatform?.label}
-          </Button>
+        {/* Left cluster: "+" flyout (Attach PDF / Connectors) + always-visible Sources pill */}
+        <div
+          className="flex items-center gap-s"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ChatActionMenuFlyout
+            connectors={composedConnectors}
+            onConnectorsChange={handleConnectorsChange}
+            availableConnectors={available.map((c) => ({
+              id: c.id,
+              label: c.label,
+              icon:
+                c.id === 'bigquery' ? <BigQueryIcon size={20} /> : undefined,
+            }))}
+            onAddConnector={(id) => requestConnectorOnboarding(id)}
+            onAttachFile={onAttachFile}
+          />
 
-          {dropdownOpen && (
-            <SelectDropdown
-              groups={dropdownGroups}
-              value={activePlatformValue}
-              onChange={handlePlatformSelect}
-              className="absolute top-full left-0 mt-xxs w-[211px] z-10"
-            />
-          )}
+          {/* Sources selector — always visible so the user knows what their query
+              runs on. Click opens a SelectDropdown popover anchored to the pill. */}
+          <div ref={sourceRootRef} className="relative inline-flex items-center">
+            <Button
+              variant="tertiary"
+              size="md"
+              pill
+              leftIcon={activePlatform?.icon ?? <BlueStacksIcon size={20} />}
+              rightIcon={<DropdownArrowIcon size={16} />}
+              onClick={() => setSourceOpen((v) => !v)}
+              aria-haspopup="listbox"
+              aria-expanded={sourceOpen}
+            >
+              {activePlatform?.label ?? 'Sources'}
+            </Button>
+            {sourceOpen && (
+              <div className="absolute bottom-full left-0 mb-xs z-50 min-w-[200px]">
+                <SelectDropdown
+                  title="SOURCES"
+                  groups={[
+                    {
+                      items: platforms.map((p) => ({
+                        value: p.value,
+                        label: p.label,
+                        icon: p.icon,
+                      })),
+                    },
+                  ]}
+                  value={activePlatformValue}
+                  onChange={handlePlatformSelect}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right: Send CTA — Button primary large icon-only round */}
