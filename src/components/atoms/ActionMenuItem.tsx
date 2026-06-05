@@ -12,13 +12,15 @@ import { ChevronRightIcon } from '../icons/ChevronRightIcon'
 import { CheckIcon } from '../icons/CheckIcon'
 import Toggle from '../ui/Toggle'
 
-export type ActionMenuItemTrailing = 'chevron' | 'checkmark' | 'toggle' | 'none'
+export type ActionMenuItemTrailing = 'chevron' | 'checkmark' | 'toggle' | 'radio' | 'none'
 
 export interface ActionMenuItemProps {
   leadingIcon?: ReactNode
   label: string
   /** Optional secondary caption shown after the label (e.g. "sixlabs-qa") */
   secondary?: string
+  /** Render the secondary caption on its own line below the label instead of inline. */
+  secondaryBelow?: boolean
   trailing?: ActionMenuItemTrailing
   /** Active = the item is currently selected / its submenu is open */
   active?: boolean
@@ -34,6 +36,7 @@ export function ActionMenuItem({
   leadingIcon,
   label,
   secondary,
+  secondaryBelow = false,
   trailing = 'none',
   active = false,
   disabled = false,
@@ -81,7 +84,13 @@ export function ActionMenuItem({
         </span>
       )}
 
-      <span className="flex-1 min-w-0 inline-flex items-center gap-xs">
+      <span
+        className={
+          secondaryBelow
+            ? 'flex-1 min-w-0 inline-flex flex-col items-start'
+            : 'flex-1 min-w-0 inline-flex items-center gap-xs'
+        }
+      >
         <span className="font-body text-s font-medium truncate">{label}</span>
         {secondary && (
           <span
@@ -99,6 +108,23 @@ export function ActionMenuItem({
         )}
         {trailing === 'checkmark' && (
           <CheckIcon size={16} aria-label="selected" />
+        )}
+        {trailing === 'radio' && (
+          <span
+            className="inline-flex items-center justify-center w-[16px] h-[16px] rounded-full shrink-0"
+            style={{
+              border: `1.5px solid ${checked ? 'var(--brand)' : 'var(--text-tertiary)'}`,
+            }}
+            role="radio"
+            aria-checked={checked}
+          >
+            {checked && (
+              <span
+                className="w-[8px] h-[8px] rounded-full"
+                style={{ backgroundColor: 'var(--brand)' }}
+              />
+            )}
+          </span>
         )}
         {trailing === 'toggle' && (
           <span onClick={handleToggleClick}>

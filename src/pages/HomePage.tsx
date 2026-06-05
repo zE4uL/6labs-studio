@@ -31,12 +31,23 @@ import {
 } from '../components/organisms/BigQueryOnboardingModal'
 import { BigQueryDetailView } from '../components/organisms/BigQueryDetailView'
 import {
+  SnowflakeOnboardingModal,
+  type SnowflakeOnboardingState,
+} from '../components/organisms/SnowflakeOnboardingModal'
+import { SnowflakeDetailView } from '../components/organisms/SnowflakeDetailView'
+import {
   disconnectBigQuery,
   getMockBigQueryConnection,
   markBigQueryConnected,
   markBigQuerySyncComplete,
   onConnectorOnboardingRequest,
   useBigQueryConnection,
+  disconnectSnowflake,
+  getMockSnowflakeConnection,
+  markSnowflakeConnected,
+  markSnowflakeSyncComplete,
+  useSnowflakeConnection,
+  type SnowflakeConnectionDetails,
 } from '../lib/state/connectorsStore'
 import { PageTopbar } from '../components/molecules/PageTopbar'
 import { PopupModal } from '../components/molecules/PopupModal'
@@ -71,12 +82,14 @@ function runBigQueryOnboardingSteps({
   projectId,
   orgWideAccess: _orgWideAccess,
   onStep,
+  onReviewComplete,
   onSuccess,
   onError,
 }: {
   projectId: string
   orgWideAccess: boolean
   onStep: (stepIndex: number) => void
+  onReviewComplete: (problemTableCount: number, totalTableCount: number) => void
   onSuccess: (summary: {
     projectId: string
     tableCount: number
@@ -94,20 +107,107 @@ function runBigQueryOnboardingSteps({
       onError(1)
       return
     }
+    // Write-permission guard — 6labs requires a read-only key. If the key has
+    // write/admin scope we reject the connection at the access-check step.
+    if (stepIndex === 2 && /write|admin|editor|owner/i.test(projectId)) {
+      onError(
+        2,
+        'This service account has write access to BigQuery. 6labs requires a read-only key (BigQuery Data Viewer). Re-export a read-only key and reconnect.',
+      )
+      return
+    }
     if (stepIndex >= BQ_STEP_DELAYS_MS.length) {
       const mock = getMockBigQueryConnection()
-      onSuccess({
-        projectId,
-        tableCount: mock.tables.length,
-        verdict: mock.verdict,
-        verdictReason: mock.verdictReason,
-      })
+      const problemTableCount = mock.tables.filter((t) => t.verdict !== 'GREEN').length
+      // Surface the review summary inside the loader for a beat before the
+      // success screen, so the user sees how many tables need attention.
+      onReviewComplete(problemTableCount, mock.tables.length)
+      window.setTimeout(() => {
+        onSuccess({
+          projectId,
+          tableCount: mock.tables.length,
+          verdict: mock.verdict,
+          verdictReason: mock.verdictReason,
+        })
+      }, 1400)
       return
     }
     window.setTimeout(() => {
       stepIndex += 1
       advance()
     }, BQ_STEP_DELAYS_MS[stepIndex])
+  }
+  advance()
+}
+
+// ─── Snowflake onboarding step driver ────────────────────────────────────────
+// Mirrors the BigQuery driver. Prototype-only error triggers keyed off the
+// entered details so every failure state is reachable without code edits:
+//  • account identifier contains "notfound"/"fake"     → account-not-found (step 1)
+//  • username contains "write"/"admin"/"owner"/"editor" → write-access-rejected (step 2)
+//  • username contains "nokey"/"badkey"                 → key-not-registered (step 0)
+//  • username contains "denied"                         → permission-denied (step 2)
+
+const SF_STEP_DELAYS_MS = [900, 700, 600, 1100] // auth · account · access · import
+
+function runSnowflakeOnboardingSteps({
+  details,
+  onStep,
+  onReviewComplete,
+  onSuccess,
+  onError,
+}: {
+  details: SnowflakeConnectionDetails
+  onStep: (stepIndex: number) => void
+  onReviewComplete: (problemTableCount: number, totalTableCount: number) => void
+  onSuccess: (summary: {
+    database: string
+    tableCount: number
+    verdict: 'GREEN' | 'YELLOW' | 'RED'
+    verdictReason: string
+  }) => void
+  onError: (stepIndex: number, errorMessage?: string) => void
+}) {
+  let stepIndex = 0
+  const advance = () => {
+    onStep(stepIndex)
+    if (stepIndex === 0 && /nokey|badkey/i.test(details.username)) {
+      onError(0)
+      return
+    }
+    if (stepIndex === 1 && /not-?found|fake|test-error/i.test(details.accountIdentifier)) {
+      onError(1)
+      return
+    }
+    if (stepIndex === 2 && /write|admin|editor|owner/i.test(details.username)) {
+      onError(
+        2,
+        'This user can write to Snowflake. 6labs requires a read-only role (SELECT only). Re-grant a read-only role and re-register the key.',
+      )
+      return
+    }
+    if (stepIndex === 2 && /denied|noaccess/i.test(details.username)) {
+      onError(2)
+      return
+    }
+    if (stepIndex >= SF_STEP_DELAYS_MS.length) {
+      const mock = getMockSnowflakeConnection()
+      const problemTableCount = mock.tables.filter((t) => t.verdict !== 'GREEN').length
+      onReviewComplete(problemTableCount, mock.tables.length)
+      window.setTimeout(() => {
+        onSuccess({
+          database: details.database,
+          tableCount: mock.tables.length,
+          verdict: mock.verdict,
+          verdictReason: mock.verdictReason,
+        })
+      }, 1400)
+      return
+    }
+    window.setTimeout(() => {
+      stepIndex += 1
+      advance()
+    }, SF_STEP_DELAYS_MS[stepIndex])
   }
   advance()
 }
@@ -137,6 +237,8 @@ export function HomePage() {
     step: number
     errorAtStep?: number
     errorMessage?: string
+    problemTableCount?: number
+    totalTableCount?: number
   }>({ step: 0 })
   const [bigQuerySummary, setBigQuerySummary] = useState<{
     projectId: string
@@ -146,6 +248,26 @@ export function HomePage() {
   } | null>(null)
   const bigQueryConnection = useBigQueryConnection()
 
+  // Snowflake onboarding modal state (prototype — fake network)
+  const [snowflakeModalState, setSnowflakeModalState] =
+    useState<SnowflakeOnboardingState | null>(null)
+  const [snowflakeInitialStep, setSnowflakeInitialStep] = useState<1 | 2>(1)
+  const [snowflakeDetails, setSnowflakeDetails] = useState<Partial<SnowflakeConnectionDetails>>({})
+  const [snowflakeProgress, setSnowflakeProgress] = useState<{
+    step: number
+    errorAtStep?: number
+    errorMessage?: string
+    problemTableCount?: number
+    totalTableCount?: number
+  }>({ step: 0 })
+  const [snowflakeSummary, setSnowflakeSummary] = useState<{
+    database: string
+    tableCount: number
+    verdict: 'GREEN' | 'YELLOW' | 'RED'
+    verdictReason: string
+  } | null>(null)
+  const snowflakeConnection = useSnowflakeConnection()
+
   // Listen for "Add connector" picks from the chat flyout. BigQuery opens the
   // dedicated modal in place; everything else navigates to the Connectors page
   // (and its detail view) so the user can read about the integration.
@@ -154,6 +276,12 @@ export function HomePage() {
       if (connectorId === 'bigquery') {
         setBigQueryProjectId('')
         setBigQueryModalState('idle')
+        return
+      }
+      if (connectorId === 'snowflake') {
+        setSnowflakeDetails({})
+        setSnowflakeInitialStep(1)
+        setSnowflakeModalState('idle')
         return
       }
       setActiveNav('connectors')
@@ -304,6 +432,31 @@ export function HomePage() {
           })
           window.setTimeout(() => markBigQuerySyncComplete(), 1500)
         }
+        const openSnowflakeModal = (step: 1 | 2) => {
+          const existing =
+            snowflakeConnection.kind !== 'not-connected'
+              ? {
+                  accountIdentifier: snowflakeConnection.accountIdentifier,
+                  username: snowflakeConnection.username,
+                  warehouse: snowflakeConnection.warehouse,
+                  database: snowflakeConnection.database,
+                }
+              : {}
+          setSnowflakeDetails(existing)
+          setSnowflakeInitialStep(step)
+          setSnowflakeModalState('idle')
+        }
+        const handleSnowflakeRefresh = () => {
+          if (snowflakeConnection.kind !== 'connected') return
+          markSnowflakeConnected({
+            accountIdentifier: snowflakeConnection.accountIdentifier,
+            username: snowflakeConnection.username,
+            warehouse: snowflakeConnection.warehouse,
+            database: snowflakeConnection.database,
+            syncing: true,
+          })
+          window.setTimeout(() => markSnowflakeSyncComplete(), 1500)
+        }
         if (selectedConnector) {
           return (
             <div className="min-h-full flex flex-col" style={{ backgroundColor: 'var(--bg-page)' }}>
@@ -322,6 +475,19 @@ export function HomePage() {
                     onRefresh={handleBigQueryRefresh}
                     onRetry={handleBigQueryRefresh}
                     onDisconnect={disconnectBigQuery}
+                    onDirtyChange={setConnectorDirty}
+                    resetSignal={connectorResetSignal}
+                  />
+                ) : selectedConnector.id === 'snowflake' ? (
+                  <SnowflakeDetailView
+                    connector={selectedConnector}
+                    connection={snowflakeConnection}
+                    onConnect={() => openSnowflakeModal(1)}
+                    onReconnect={() => openSnowflakeModal(2)}
+                    onReregisterKey={() => openSnowflakeModal(1)}
+                    onRefresh={handleSnowflakeRefresh}
+                    onRetry={handleSnowflakeRefresh}
+                    onDisconnect={disconnectSnowflake}
                     onDirtyChange={setConnectorDirty}
                     resetSignal={connectorResetSignal}
                   />
@@ -563,6 +729,12 @@ export function HomePage() {
             projectId,
             orgWideAccess,
             onStep: (step) => setBigQueryProgress({ step }),
+            onReviewComplete: (problemTableCount, totalTableCount) =>
+              setBigQueryProgress({
+                step: 4,
+                problemTableCount,
+                totalTableCount,
+              }),
             onSuccess: (summary) => {
               markBigQueryConnected({ projectId, syncing: true, orgWideAccess })
               markBigQuerySyncComplete()
@@ -583,6 +755,54 @@ export function HomePage() {
           setBigQueryModalState(null)
           setBigQueryProgress({ step: 0 })
           setBigQuerySummary(null)
+        }}
+      />
+
+      {/* Snowflake onboarding modal (prototype — fake network) */}
+      <SnowflakeOnboardingModal
+        isOpen={snowflakeModalState !== null}
+        state={snowflakeModalState ?? 'idle'}
+        initialStep={snowflakeInitialStep}
+        details={snowflakeDetails}
+        progress={snowflakeProgress}
+        summary={snowflakeSummary ?? undefined}
+        onClose={() => {
+          setSnowflakeModalState(null)
+          setSnowflakeProgress({ step: 0 })
+          setSnowflakeSummary(null)
+        }}
+        onConnect={(payload) => {
+          const { orgWideAccess, ...details } = payload
+          setSnowflakeDetails(details)
+          setSnowflakeSummary(null)
+          setSnowflakeProgress({ step: 0 })
+          setSnowflakeModalState('progress')
+          runSnowflakeOnboardingSteps({
+            details,
+            onStep: (step) => setSnowflakeProgress({ step }),
+            onReviewComplete: (problemTableCount, totalTableCount) =>
+              setSnowflakeProgress({ step: 4, problemTableCount, totalTableCount }),
+            onSuccess: (summary) => {
+              markSnowflakeConnected({ ...details, syncing: true, orgWideAccess })
+              markSnowflakeSyncComplete()
+              setSnowflakeSummary(summary)
+              setSnowflakeModalState('success')
+            },
+            onError: (errorAtStep, errorMessage) => {
+              setSnowflakeProgress({ step: errorAtStep, errorAtStep, errorMessage })
+              setSnowflakeModalState('failed')
+            },
+          })
+        }}
+        onRetry={() => {
+          setSnowflakeProgress({ step: 0 })
+          setSnowflakeInitialStep(2)
+          setSnowflakeModalState('idle')
+        }}
+        onDone={() => {
+          setSnowflakeModalState(null)
+          setSnowflakeProgress({ step: 0 })
+          setSnowflakeSummary(null)
         }}
       />
 

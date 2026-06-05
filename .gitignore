@@ -28,3 +28,6 @@ coverage/
 *.tsbuildinfo
 
 .vercel
+
+# Local Claude preview/launch config
+.claude/

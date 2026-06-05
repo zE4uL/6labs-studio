@@ -18,6 +18,7 @@ import { SlackIcon } from '../icons/connectors/SlackIcon'
 import { DiscordIcon } from '../icons/connectors/DiscordIcon'
 import { FacebookAdsIcon } from '../icons/connectors/FacebookAdsIcon'
 import { BigQueryIcon } from '../icons/connectors/BigQueryIcon'
+import { SnowflakeIcon } from '../icons/connectors/SnowflakeIcon'
 import type { ConnectorDetail } from './ConnectorDetailView'
 
 export const CONNECTORS: (ConnectorDetail & { description: string; row: number })[] = [
@@ -154,6 +155,33 @@ export const CONNECTORS: (ConnectorDetail & { description: string; row: number }
       'Upload the JSON — we read the project ID from it automatically',
       'We authenticate, connect, and import your tables and column schemas',
       'Add table + column descriptions so Oracle’s answers stay grounded',
+    ],
+  },
+  {
+    id: 'snowflake',
+    icon: <SnowflakeIcon size={40} />,
+    name: 'Snowflake',
+    description:
+      'Connect your Snowflake warehouse with secure key-pair auth — no passwords exchanged. Oracle queries your live tables read-only, grounded in the data your team already trusts.',
+    row: 2,
+    tags: [
+      { label: 'Data warehouse', variant: 'neutral' },
+      { label: 'Key-pair auth', variant: 'brand' },
+    ],
+    iconTint: 'rgba(41, 181, 232, 0.07)',
+    about:
+      'Snowflake is a cloud data platform for analytics at scale. Connecting it lets 6labs agents query your live Snowflake tables alongside gameplay evidence — so Oracle can answer business questions grounded in the same data your analyst team trusts. 6labs authenticates with RSA key-pair auth: our private key never leaves 6labs, and you register only our public key against a read-only user.',
+    benefits: [
+      'Ask Oracle questions against your live Snowflake tables, no SQL required',
+      'Password-free key-pair auth — you only register our public key',
+      'Cross-reference gameplay findings with revenue and retention data',
+      'Tables are read-only — 6labs never writes back to your warehouse',
+    ],
+    steps: [
+      'Copy our public key and run the SQL to create a read-only role + user',
+      'Register the key with ALTER USER … SET RSA_PUBLIC_KEY',
+      'Share back your account identifier, username, warehouse, and database',
+      'We verify connectivity and import your tables and column metadata',
     ],
   },
   {

@@ -107,6 +107,11 @@ export interface ProgressDetail {
   errorAtStep?: number
   /** Free-form override for the error helper. */
   errorMessage?: string
+  /** Once the API/import completes, how many imported tables have problems
+   *  (non-GREEN verdict). Surfaced at the bottom of the loader. */
+  problemTableCount?: number
+  /** Total tables imported — paired with problemTableCount for the summary. */
+  totalTableCount?: number
 }
 
 export interface SuccessSummary {
@@ -117,7 +122,7 @@ export interface SuccessSummary {
   verdictReason: string
 }
 
-const MAX_JSON_BYTES = 256 * 1024
+const MAX_JSON_BYTES = 5 * 1024 * 1024
 
 export interface BigQueryOnboardingModalProps {
   isOpen: boolean
@@ -130,6 +135,8 @@ export interface BigQueryOnboardingModalProps {
   fileName?: string
   /** Reason string surfaced in the `failed` state. */
   errorReason?: string
+  /** Storybook-only: seed the inline upload error (e.g. "JSON needs fixing"). */
+  initialError?: string
   /** Drives the 4-stage loader. Required when `state` ∈ {progress, failed}. */
   progress?: ProgressDetail
   /** Summary content shown when `state="success"`. */
@@ -153,6 +160,7 @@ export function BigQueryOnboardingModal({
   projectId: projectIdProp,
   fileName: fileNameProp,
   errorReason,
+  initialError,
   progress,
   summary,
   onConnect,
@@ -168,8 +176,7 @@ export function BigQueryOnboardingModal({
   const [projectId, setProjectId] = useState(projectIdProp ?? '')
   const [file, setFile] = useState<File | null>(null)
   const [dragOver, setDragOver] = useState(false)
-  const [localError, setLocalError] = useState<string | null>(null)
-  const [orgWideAccess, setOrgWideAccess] = useState(false)
+  const [localError, setLocalError] = useState<string | null>(initialError ?? null)
   const [extracting, setExtracting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -203,36 +210,44 @@ export function BigQueryOnboardingModal({
       return
     }
     if (next.size > MAX_JSON_BYTES) {
-      setLocalError('File too large — service-account JSON should be under 256 KB.')
+      setLocalError('File too large — service-account JSON should be under 5 MB.')
       setFile(null)
       setProjectId('')
       return
     }
 
-    // Demo mode: accept any .json file. If `project_id` is present we use it;
-    // otherwise fall back to a mock so the connection flow can run end-to-end
-    // without a real service-account key.
+    // Validate the JSON looks like a service-account key. A malformed file or
+    // one that isn't an SA key surfaces a distinct "needs to be fixed" state
+    // so the user knows to re-export it — rather than silently proceeding.
     setExtracting(true)
     setLocalError(null)
-    const MOCK_PROJECT_ID = 'demo-analytics-warehouse'
+    const NEEDS_FIX =
+      'The selected JSON needs to be fixed — it isn’t a valid service-account key (no project_id found). Re-export the key from GCP and try again.'
     next.text().then((raw) => {
-      let pid = ''
+      let parsed: Record<string, unknown> | null = null
       try {
-        const parsed = JSON.parse(raw) as Record<string, unknown>
-        if (typeof parsed.project_id === 'string' && parsed.project_id.trim()) {
-          pid = parsed.project_id.trim()
-        }
+        parsed = JSON.parse(raw) as Record<string, unknown>
       } catch {
-        // Not valid JSON — fall through to mock.
+        parsed = null
       }
-
+      const looksLikeSaKey =
+        parsed != null &&
+        (typeof parsed.project_id === 'string' ||
+          typeof parsed.private_key === 'string' ||
+          typeof parsed.client_email === 'string')
+      if (!looksLikeSaKey || typeof parsed!.project_id !== 'string' || !parsed!.project_id.trim()) {
+        setExtracting(false)
+        setFile(null)
+        setLocalError(NEEDS_FIX)
+        return
+      }
       setFile(next)
-      setProjectId(pid || MOCK_PROJECT_ID)
+      setProjectId(parsed!.project_id.trim())
       setExtracting(false)
     }).catch(() => {
-      setFile(next)
-      setProjectId(MOCK_PROJECT_ID)
       setExtracting(false)
+      setFile(null)
+      setLocalError('Couldn’t read this file. Re-export the service-account JSON and try again.')
     })
   }
 
@@ -249,7 +264,8 @@ export function BigQueryOnboardingModal({
 
   const handleConnect = () => {
     if (!canSubmit || !file) return
-    onConnect?.({ projectId: projectId.trim(), file, orgWideAccess })
+    // Org-wide access is mandatory now — every workspace member can query.
+    onConnect?.({ projectId: projectId.trim(), file, orgWideAccess: true })
   }
 
   return createPortal(
@@ -288,8 +304,7 @@ export function BigQueryOnboardingModal({
               className="font-body text-s leading-[1.5]"
               style={{ color: 'var(--text-secondary)' }}
             >
-              Upload a GCP service-account JSON. We&rsquo;ll read the project
-              ID from it, authenticate, and import your tables.
+              Upload a GCP service-account JSON.
             </p>
           </div>
           <button
@@ -409,7 +424,7 @@ export function BigQueryOnboardingModal({
                     className="font-display text-2xs font-semibold uppercase tracking-[0.12em]"
                     style={{ color: 'var(--text-tertiary)' }}
                   >
-                    MAX 256 KB
+                    MAX 5 MB
                   </span>
                 </div>
               )}
@@ -496,7 +511,7 @@ export function BigQueryOnboardingModal({
                   className="font-display text-xs font-semibold uppercase tracking-[0.12em]"
                   style={{ color: 'var(--warning)' }}
                 >
-                  Before you connect
+                  Heads up before connecting
                 </span>
                 <span
                   className="font-body text-xs leading-[1.5]"
@@ -510,33 +525,40 @@ export function BigQueryOnboardingModal({
               </div>
             </div>
 
-            {/* Share-with-org checkbox + disclaimer */}
-            <label className="flex items-start gap-s cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="mt-[2px] w-[16px] h-[16px] shrink-0 cursor-pointer accent-[var(--brand)]"
-                checked={orgWideAccess}
-                onChange={(e) => setOrgWideAccess(e.target.checked)}
-                disabled={state === 'connecting'}
-              />
+            {/* Org-wide access disclaimer — no longer a choice. Every member
+                of the workspace can query this connection once it's live. */}
+            <div
+              className="flex items-start gap-s p-m rounded-m"
+              style={{
+                backgroundColor: 'var(--bg-tint-light)',
+                border: '1px solid var(--border-tint)',
+              }}
+            >
+              <span
+                aria-hidden
+                className="shrink-0 mt-[2px] inline-flex items-center justify-center w-[20px] h-[20px] rounded-full font-display text-xs font-bold italic"
+                style={{ backgroundColor: 'var(--brand)', color: 'var(--text-on-brand)' }}
+              >
+                i
+              </span>
               <span className="flex-1 min-w-0 flex flex-col gap-xxs">
                 <span
                   className="font-body text-s font-medium"
                   style={{ color: 'var(--text-primary)' }}
                 >
-                  Share this connection with the whole organisation
+                  Every member of this workspace will have access
                 </span>
                 <span
                   className="font-body text-xs leading-[1.5]"
                   style={{ color: 'var(--text-tertiary)' }}
                 >
-                  When enabled, every teammate in your 6labs workspace can
-                  query the same BigQuery tables through Oracle. The service
-                  account itself stays read-only — we never write back to your
-                  warehouse — but description edits will be visible to all.
+                  Once connected, every teammate in your 6labs workspace can
+                  query these BigQuery tables through Oracle and see description
+                  edits. The service account stays read-only — 6labs never
+                  writes back to your warehouse.
                 </span>
               </span>
-            </label>
+            </div>
 
             {state === 'failed' && (
               <div
@@ -637,6 +659,42 @@ function ProgressBody({
           return <StepRow key={step} step={step} status={status} isLast={i === STEP_ORDER.length - 1} />
         })}
       </ol>
+
+      {/* Review summary — surfaced once the import/API completes, before the
+          success screen, so the user sees how many tables need attention. */}
+      {state !== 'failed' && progress.problemTableCount != null && (
+        <div
+          className="flex items-center gap-s p-m rounded-m"
+          style={{
+            backgroundColor:
+              progress.problemTableCount > 0 ? 'var(--warning-bg)' : 'var(--bg-tint-light)',
+            border: `1px solid ${
+              progress.problemTableCount > 0 ? 'var(--warning)' : 'var(--border-tint)'
+            }`,
+          }}
+        >
+          <span
+            className="font-body text-s leading-[1.5]"
+            style={{
+              color:
+                progress.problemTableCount > 0 ? 'var(--warning)' : 'var(--text-secondary)',
+            }}
+          >
+            {progress.problemTableCount > 0 ? (
+              <>
+                <strong>{progress.problemTableCount}</strong> of{' '}
+                <strong>{progress.totalTableCount}</strong>{' '}
+                table{progress.totalTableCount === 1 ? '' : 's'} need attention — add
+                missing descriptions to mark them ready.
+              </>
+            ) : (
+              <>
+                All <strong>{progress.totalTableCount}</strong> tables look good.
+              </>
+            )}
+          </span>
+        </div>
+      )}
 
       {/* Error helper + actions */}
       {state === 'failed' && errorMeta && (

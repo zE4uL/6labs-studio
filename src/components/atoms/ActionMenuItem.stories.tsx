@@ -75,6 +75,34 @@ export const WithToggle: Story = {
   },
 }
 
+export const WithRadioSelected: Story = {
+  name: 'With radio (selected)',
+  args: {
+    label: 'app_click_data',
+    trailing: 'radio',
+    checked: true,
+  },
+}
+
+export const WithRadioUnselected: Story = {
+  name: 'With radio (unselected)',
+  args: {
+    label: 'session_summary',
+    trailing: 'radio',
+    checked: false,
+  },
+}
+
+export const SecondaryBelow: Story = {
+  name: 'Secondary below (connector header)',
+  args: {
+    leadingIcon: <ConnectorIcon size={16} />,
+    label: 'BigQuery',
+    secondary: 'sixlabs-qa',
+    secondaryBelow: true,
+  },
+}
+
 export const Disabled: Story = {
   args: {
     leadingIcon: <ConnectorIcon size={16} />,

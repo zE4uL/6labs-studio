@@ -1,19 +1,37 @@
 /**
- * BigQueryDetailView — Detail page for the BigQuery connector. Wraps the
- * generic ConnectorDetailView for the "not connected" state and replaces
- * its body with state-specific UI once onboarding has happened.
+ * SnowflakeDetailView — Detail page for the Snowflake connector. Wraps the
+ * generic ConnectorDetailView for the "not connected" state and replaces its
+ * body with state-specific UI once onboarding has happened.
  *
- * Post 2026-05-18 review:
- *  • The status pill is now tri-state (Ready / Needs descriptions / Error) so
- *    YELLOW is visible to the user.
- *  • The imported table list is rendered with per-table verdict and editable
- *    table + column descriptions — Oracle answers depend on them.
- *  • LLM-authored analyst summaries surface in a collapsed section so the
- *    initial scope (basic imports + editable descriptions) stays the default.
+ * Mirrors BigQueryDetailView's connected/error lifecycle, but:
+ *  • Identity is Account / Warehouse / Database (not a GCP project id).
+ *  • Re-auth means re-registering our public key (key-pair), not re-uploading a
+ *    credential file.
+ *  • The imported-table list, inline description editors, info banners and
+ *    summary grid are the shared WarehouseTableCard molecule.
+ *
+ * Code-first prototype — no Figma source yet.
  */
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import Button from '../ui/Button'
+import { ConnectorDetailView, type ConnectorDetail } from './ConnectorDetailView'
+import { ConnectionStatusPill } from '../atoms/ConnectionStatusPill'
+import {
+  WarehouseTableCard,
+  InfoBanner,
+  SummaryGrid,
+  formatRelative,
+  verdictToPillVariant,
+  type BannerTone,
+} from '../molecules/WarehouseTableCard'
+import {
+  updateSnowflakeColumnDescription,
+  updateSnowflakeTableDescription,
+  type SnowflakeConnection,
+  type SnowflakeErrorReason,
+} from '../../lib/state/connectorsStore'
 
 // Adds/removes `key` in a pending-edits record. Drops the key when the next
 // value matches `committed` so an edit that lands back at the saved value
@@ -32,60 +50,35 @@ function stagePending(
   if (prev[key] === next) return prev
   return { ...prev, [key]: next }
 }
-import Button from '../ui/Button'
-import { ConnectorDetailView, type ConnectorDetail } from './ConnectorDetailView'
-import { ConnectionStatusPill } from '../atoms/ConnectionStatusPill'
-import {
-  WarehouseTableCard,
-  InfoBanner,
-  SummaryGrid,
-  formatRelative,
-  verdictToPillVariant,
-  type BannerTone,
-} from '../molecules/WarehouseTableCard'
-import {
-  setBigQueryOrgWideAccess,
-  updateColumnDescription,
-  updateTableDescription,
-  type BigQueryConnection,
-  type BigQueryErrorReason,
-} from '../../lib/state/connectorsStore'
 
-export interface BigQueryDetailViewProps {
+export interface SnowflakeDetailViewProps {
   connector: ConnectorDetail
-  connection: BigQueryConnection
+  connection: SnowflakeConnection
 
-  /** Open the onboarding modal in "idle" state (first-time connect). */
+  /** Open the onboarding modal (first-time connect / reconnect). */
   onConnect?: () => void
-  /** Open the onboarding modal in "idle" state for re-auth. */
   onReconnect?: () => void
-  /** Open the onboarding modal pre-focused on the file dropzone. */
-  onReuploadCredentials?: () => void
-  /** Kick off another internal table review pass. */
+  /** Open onboarding to re-register our public key (key-pair re-auth). */
+  onReregisterKey?: () => void
+  /** Kick off another table-import pass. */
   onRefresh?: () => void
   /** Retry the last failing call (network errors). */
   onRetry?: () => void
   /** Remove the connection entirely. */
   onDisconnect?: () => void
-  /** Notifies parent when the unsaved-changes flag flips, so the parent can
-   *  intercept navigation and prompt the user. */
   onDirtyChange?: (dirty: boolean) => void
-  /** Imperative reset signal — when this number changes, pending edits are
-   *  thrown away. Used by the parent's "Discard & leave" confirmation. */
   resetSignal?: number
-
   /** Storybook-only: open the refresh-confirmation popup on mount. */
   defaultRefreshConfirmOpen?: boolean
-
   className?: string
 }
 
-export function BigQueryDetailView({
+export function SnowflakeDetailView({
   connector,
   connection,
   onConnect,
   onReconnect,
-  onReuploadCredentials,
+  onReregisterKey,
   onRefresh,
   onRetry,
   onDisconnect,
@@ -93,47 +86,32 @@ export function BigQueryDetailView({
   resetSignal,
   defaultRefreshConfirmOpen,
   className,
-}: BigQueryDetailViewProps) {
-  // Pending edits buffer — table descriptions, column descriptions and the
-  // org-wide-access toggle stay local until the user clicks "Save changes".
-  // Keyed by fqn (tables) and `${fqn}::${columnName}` (columns).
+}: SnowflakeDetailViewProps) {
   const [pendingTableDescs, setPendingTableDescs] = useState<Record<string, string>>({})
   const [pendingColumnDescs, setPendingColumnDescs] = useState<Record<string, string>>({})
-  const [pendingOrgWide, setPendingOrgWide] = useState<boolean | null>(null)
-  // Refresh wipes every table + column description, so we gate it behind a
-  // confirmation popup. Kept above the early return to satisfy the rules of hooks.
   const [refreshConfirmOpen, setRefreshConfirmOpen] = useState(defaultRefreshConfirmOpen ?? false)
 
   const isError = connection.kind === 'error'
   const isSyncing = connection.kind === 'connected' && connection.syncing
   const dirty =
     connection.kind === 'connected' &&
-    (Object.keys(pendingTableDescs).length > 0 ||
-      Object.keys(pendingColumnDescs).length > 0 ||
-      (pendingOrgWide !== null && pendingOrgWide !== connection.orgWideAccess))
+    (Object.keys(pendingTableDescs).length > 0 || Object.keys(pendingColumnDescs).length > 0)
 
-  // Reset the buffer when we switch to a different connection state — avoids
-  // stale edits surviving a disconnect/reconnect cycle.
   useEffect(() => {
     setPendingTableDescs({})
     setPendingColumnDescs({})
-    setPendingOrgWide(null)
   }, [connection.kind])
 
-  // Notify parent when the dirty flag flips so it can intercept navigation.
   useEffect(() => {
     onDirtyChange?.(dirty)
   }, [dirty, onDirtyChange])
 
-  // Imperative reset from parent (used by the unsaved-changes confirm modal).
   useEffect(() => {
     if (resetSignal === undefined) return
     setPendingTableDescs({})
     setPendingColumnDescs({})
-    setPendingOrgWide(null)
   }, [resetSignal])
 
-  // Warn on browser-level navigation away (tab close, refresh, deep link).
   useEffect(() => {
     if (!dirty) return
     const handler = (e: BeforeUnloadEvent) => {
@@ -146,57 +124,32 @@ export function BigQueryDetailView({
 
   // Not connected — defer to the generic "About / Benefits / Steps" template.
   if (connection.kind === 'not-connected') {
-    return (
-      <ConnectorDetailView
-        connector={connector}
-        onConnect={onConnect}
-        className={className}
-      />
-    )
+    return <ConnectorDetailView connector={connector} onConnect={onConnect} className={className} />
   }
 
   const handleSave = () => {
     if (connection.kind !== 'connected') return
     Object.entries(pendingTableDescs).forEach(([fqn, desc]) => {
-      updateTableDescription(fqn, desc)
+      updateSnowflakeTableDescription(fqn, desc)
     })
     Object.entries(pendingColumnDescs).forEach(([key, desc]) => {
       const sep = key.indexOf('::')
       if (sep === -1) return
-      const fqn = key.slice(0, sep)
-      const col = key.slice(sep + 2)
-      updateColumnDescription(fqn, col, desc)
+      updateSnowflakeColumnDescription(key.slice(0, sep), key.slice(sep + 2), desc)
     })
-    if (pendingOrgWide !== null && pendingOrgWide !== connection.orgWideAccess) {
-      setBigQueryOrgWideAccess(pendingOrgWide)
-    }
     setPendingTableDescs({})
     setPendingColumnDescs({})
-    setPendingOrgWide(null)
   }
 
   const handleDiscard = () => {
     setPendingTableDescs({})
     setPendingColumnDescs({})
-    setPendingOrgWide(null)
   }
 
-  const pendingCount =
-    Object.keys(pendingTableDescs).length +
-    Object.keys(pendingColumnDescs).length +
-    (pendingOrgWide !== null &&
-    connection.kind === 'connected' &&
-    pendingOrgWide !== connection.orgWideAccess
-      ? 1
-      : 0)
+  const pendingCount = Object.keys(pendingTableDescs).length + Object.keys(pendingColumnDescs).length
 
   return (
-    <div
-      className={['flex flex-col w-full flex-1', className]
-        .filter(Boolean)
-        .join(' ')}
-    >
-      {/* Header */}
+    <div className={['flex flex-col w-full flex-1', className].filter(Boolean).join(' ')}>
       <Header
         connector={connector}
         connection={connection}
@@ -205,72 +158,47 @@ export function BigQueryDetailView({
             <PrimaryErrorAction
               connection={connection}
               onReconnect={onReconnect}
-              onReuploadCredentials={onReuploadCredentials}
+              onReregisterKey={onReregisterKey}
               onRetry={onRetry}
             />
           ) : !isSyncing ? (
-            <Button
-              variant="outline"
-              size="lg"
-              onClick={() => setRefreshConfirmOpen(true)}
-            >
+            <Button variant="outline" size="lg" onClick={() => setRefreshConfirmOpen(true)}>
               Refresh
             </Button>
           ) : null
         }
         secondaryAction={
-          <Button
-            variant="outline"
-            size="lg"
-            onClick={onDisconnect}
-          >
+          <Button variant="outline" size="lg" onClick={onDisconnect}>
             Disconnect
           </Button>
         }
       />
 
-      {/* Refresh confirmation — refresh re-imports schemas and clears every
-          description the user has added, so we always confirm first. */}
       {refreshConfirmOpen &&
         createPortal(
           <div
             className="fixed inset-0 z-50 flex items-center justify-center p-m"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="bq-refresh-confirm-title"
+            aria-labelledby="sf-refresh-confirm-title"
           >
-            <div
-              className="absolute inset-0 bg-black/40"
-              onClick={() => setRefreshConfirmOpen(false)}
-              aria-hidden
-            />
-            <div
-              className="relative flex flex-col gap-l bg-bg-elements rounded-m shadow-normal p-l w-[440px]"
-            >
+            <div className="absolute inset-0 bg-black/40" onClick={() => setRefreshConfirmOpen(false)} aria-hidden />
+            <div className="relative flex flex-col gap-l bg-bg-elements rounded-m shadow-normal p-l w-[440px]">
               <div className="flex flex-col gap-xs">
                 <span
-                  id="bq-refresh-confirm-title"
+                  id="sf-refresh-confirm-title"
                   className="font-display text-l font-semibold"
                   style={{ color: 'var(--text-primary)' }}
                 >
                   Refresh this connection?
                 </span>
-                <span
-                  className="font-body text-s leading-[1.5]"
-                  style={{ color: 'var(--text-secondary)' }}
-                >
-                  Refreshing re-imports schemas from BigQuery and clears every
-                  table and column description you&rsquo;ve added. This can&rsquo;t
-                  be undone.
+                <span className="font-body text-s leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>
+                  Refreshing re-imports schemas from Snowflake and clears every table
+                  and column description you&rsquo;ve added. This can&rsquo;t be undone.
                 </span>
               </div>
               <div className="flex gap-m w-full">
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  className="flex-1"
-                  onClick={() => setRefreshConfirmOpen(false)}
-                >
+                <Button variant="secondary" size="lg" className="flex-1" onClick={() => setRefreshConfirmOpen(false)}>
                   Cancel
                 </Button>
                 <Button
@@ -290,7 +218,6 @@ export function BigQueryDetailView({
           document.body,
         )}
 
-      {/* Body */}
       <div className="flex flex-col gap-[40px] mt-[60px] w-full">
         {connection.kind === 'connected' && (
           <ConnectedBody
@@ -298,38 +225,28 @@ export function BigQueryDetailView({
             pendingTableDescs={pendingTableDescs}
             pendingColumnDescs={pendingColumnDescs}
             onEditTable={(fqn, value) => {
-              const committed =
-                connection.tables.find((t) => t.fqn === fqn)?.description ?? ''
+              const committed = connection.tables.find((t) => t.fqn === fqn)?.description ?? ''
               setPendingTableDescs((prev) => stagePending(prev, fqn, value, committed))
             }}
             onEditColumn={(fqn, col, value) => {
               const table = connection.tables.find((t) => t.fqn === fqn)
               const committed = table?.columns.find((c) => c.name === col)?.description ?? ''
-              setPendingColumnDescs((prev) =>
-                stagePending(prev, `${fqn}::${col}`, value, committed),
-              )
+              setPendingColumnDescs((prev) => stagePending(prev, `${fqn}::${col}`, value, committed))
             }}
           />
         )}
         {connection.kind === 'error' && (
           <ErrorBody
-            projectId={connection.projectId}
-            reason={connection.reason}
-            lastRefreshedAt={connection.lastRefreshedAt}
+            connection={connection}
             onReconnect={onReconnect}
-            onReuploadCredentials={onReuploadCredentials}
+            onReregisterKey={onReregisterKey}
             onRetry={onRetry}
           />
         )}
       </div>
 
       {connection.kind === 'connected' && !isSyncing && (
-        <SaveBottomBar
-          dirty={dirty}
-          pendingCount={pendingCount}
-          onSave={handleSave}
-          onDiscard={handleDiscard}
-        />
+        <SaveBottomBar dirty={dirty} pendingCount={pendingCount} onSave={handleSave} onDiscard={handleDiscard} />
       )}
     </div>
   )
@@ -351,18 +268,10 @@ function SaveBottomBar({
   return (
     <div
       className="sticky bottom-0 -mx-[32px] -mb-[80px] mt-auto h-[80px] flex items-center justify-between pl-[32px] pr-[20px] z-30"
-      style={{
-        backgroundColor: 'white',
-        borderTop: '1px solid var(--bg-subtle)',
-      }}
+      style={{ backgroundColor: 'white', borderTop: '1px solid var(--bg-subtle)' }}
     >
-      <span
-        className="font-body text-s"
-        style={{ color: 'var(--text-secondary)' }}
-      >
-        {pendingCount === 0
-          ? 'No unsaved changes'
-          : `${pendingCount} unsaved change${pendingCount === 1 ? '' : 's'}`}
+      <span className="font-body text-s" style={{ color: 'var(--text-secondary)' }}>
+        {pendingCount === 0 ? 'No unsaved changes' : `${pendingCount} unsaved change${pendingCount === 1 ? '' : 's'}`}
       </span>
       <div className="flex items-center gap-s">
         {dirty && (
@@ -370,12 +279,7 @@ function SaveBottomBar({
             Discard
           </Button>
         )}
-        <Button
-          variant="primary"
-          size="lg"
-          onClick={onSave}
-          disabled={!dirty}
-        >
+        <Button variant="primary" size="lg" onClick={onSave} disabled={!dirty}>
           Save changes
         </Button>
       </div>
@@ -392,12 +296,14 @@ function Header({
   secondaryAction,
 }: {
   connector: ConnectorDetail
-  connection: BigQueryConnection
+  connection: SnowflakeConnection
   primaryAction: ReactNode
   secondaryAction: ReactNode
 }) {
-  const projectId =
-    connection.kind === 'not-connected' ? null : connection.projectId
+  const identity =
+    connection.kind === 'not-connected'
+      ? null
+      : { account: connection.accountIdentifier, warehouse: connection.warehouse, database: connection.database }
   const pillVariant: 'ready' | 'partial' | 'error' | 'disconnected' =
     connection.kind === 'error'
       ? 'error'
@@ -425,9 +331,7 @@ function Header({
             >
               {connector.name}
             </h1>
-            {pillVariant !== 'partial' && (
-              <ConnectionStatusPill variant={pillVariant} />
-            )}
+            {pillVariant !== 'partial' && <ConnectionStatusPill variant={pillVariant} />}
           </div>
           <div className="flex gap-xs items-center flex-wrap">
             {connector.tags.map((tag) => (
@@ -451,7 +355,7 @@ function Header({
                 {tag.label}
               </span>
             ))}
-            {projectId && (
+            {identity && (
               <span
                 className="inline-flex items-center justify-center gap-xxs px-s py-xxs rounded-[20px] font-body text-s font-medium whitespace-nowrap"
                 style={{
@@ -460,8 +364,10 @@ function Header({
                   color: 'var(--text-secondary)',
                 }}
               >
-                <span style={{ color: 'var(--text-tertiary)' }}>Project</span>
-                <code style={{ fontFamily: 'inherit' }}>{projectId}</code>
+                <span style={{ color: 'var(--text-tertiary)' }}>DB</span>
+                <code style={{ fontFamily: 'inherit' }}>{identity.database}</code>
+                <span style={{ color: 'var(--text-tertiary)' }}>·</span>
+                <code style={{ fontFamily: 'inherit' }}>{identity.warehouse}</code>
               </span>
             )}
           </div>
@@ -479,12 +385,12 @@ function Header({
 function PrimaryErrorAction({
   connection,
   onReconnect,
-  onReuploadCredentials,
+  onReregisterKey,
   onRetry,
 }: {
-  connection: Extract<BigQueryConnection, { kind: 'error' }>
+  connection: Extract<SnowflakeConnection, { kind: 'error' }>
   onReconnect?: () => void
-  onReuploadCredentials?: () => void
+  onReregisterKey?: () => void
   onRetry?: () => void
 }) {
   if (connection.reason === 'network') {
@@ -494,10 +400,10 @@ function PrimaryErrorAction({
       </Button>
     )
   }
-  if (connection.reason === 'credentials-expired') {
+  if (connection.reason === 'key-not-registered' || connection.reason === 'write-access-rejected') {
     return (
-      <Button variant="primary" size="lg" onClick={onReuploadCredentials}>
-        Re-upload JSON
+      <Button variant="primary" size="lg" onClick={onReregisterKey}>
+        Re-register key
       </Button>
     )
   }
@@ -517,13 +423,13 @@ function ConnectedBody({
   onEditTable,
   onEditColumn,
 }: {
-  connection: Extract<BigQueryConnection, { kind: 'connected' }>
+  connection: Extract<SnowflakeConnection, { kind: 'connected' }>
   pendingTableDescs: Record<string, string>
   pendingColumnDescs: Record<string, string>
   onEditTable: (fqn: string, value: string) => void
   onEditColumn: (fqn: string, columnName: string, value: string) => void
 }) {
-  const { projectId, syncing, tables, lastRefreshedAt, verdict, verdictReason, saEmail } = connection
+  const { database, syncing, tables, lastRefreshedAt, verdict, verdictReason, username } = connection
 
   if (syncing) {
     return (
@@ -532,9 +438,9 @@ function ConnectedBody({
         title="Importing your tables"
         body={
           <>
-            We&rsquo;re scanning <strong>{projectId}</strong> and getting tables
-            ready to query. This usually takes a few seconds. Description edits
-            unlock once the table list is back.
+            We&rsquo;re scanning <strong>{database}</strong> and getting tables ready
+            to query. This usually takes a few seconds. Description edits unlock once
+            the table list is back.
           </>
         }
       />
@@ -546,17 +452,16 @@ function ConnectedBody({
 
   return (
     <>
-      {/* Aggregate verdict banner */}
       {verdict === 'YELLOW' && (
         <InfoBanner
           tone="warning"
           title="Connection is partial — needs descriptions"
           body={
             <>
-              {verdictReason || 'Some tables or columns are missing descriptions.'}{' '}
-              Oracle can still query these tables, but answers will be weaker
-              until every table and column has a description. Fill them in
-              below to mark this connection <strong>Ready</strong>.
+              {verdictReason || 'Some tables or columns are missing descriptions.'} Oracle
+              can still query these tables, but answers will be weaker until every table
+              and column has a description. Fill them in below to mark this connection{' '}
+              <strong>Ready</strong>.
             </>
           }
         />
@@ -564,34 +469,18 @@ function ConnectedBody({
 
       <SummaryGrid
         items={[
-          {
-            label: 'Tables imported',
-            value: String(tables.length),
-          },
-          {
-            label: 'Ready · Needs work',
-            value: `${greenCount} · ${yellowCount}`,
-          },
-          {
-            label: 'Last refreshed',
-            value: formatRelative(lastRefreshedAt),
-          },
+          { label: 'Tables imported', value: String(tables.length) },
+          { label: 'Ready · Needs work', value: `${greenCount} · ${yellowCount}` },
+          { label: 'Last refreshed', value: formatRelative(lastRefreshedAt) },
         ]}
       />
 
-      {/* Editable table list */}
       <section className="flex flex-col gap-s">
         <div className="flex items-baseline justify-between gap-m">
-          <h2
-            className="font-display text-m font-semibold leading-[1.5]"
-            style={{ color: 'var(--text-primary)' }}
-          >
+          <h2 className="font-display text-m font-semibold leading-[1.5]" style={{ color: 'var(--text-primary)' }}>
             Tables
           </h2>
-          <span
-            className="font-body text-xs"
-            style={{ color: 'var(--text-tertiary)' }}
-          >
+          <span className="font-body text-xs" style={{ color: 'var(--text-tertiary)' }}>
             Click any table to edit descriptions
           </span>
         </div>
@@ -609,14 +498,9 @@ function ConnectedBody({
         </div>
       </section>
 
-      {/* Org-wide access disclaimer — no longer a toggle. Every member of the
-          workspace can query this connection (no opt-out). */}
       <section
         className="flex items-start gap-m p-l rounded-xl"
-        style={{
-          backgroundColor: 'var(--bg-elements)',
-          border: '1px solid var(--border-default)',
-        }}
+        style={{ backgroundColor: 'var(--bg-elements)', border: '1px solid var(--border-default)' }}
       >
         <span
           aria-hidden
@@ -626,37 +510,22 @@ function ConnectedBody({
           i
         </span>
         <div className="flex-1 min-w-0 flex flex-col gap-xxs">
-          <span
-            className="font-body text-s font-medium"
-            style={{ color: 'var(--text-primary)' }}
-          >
+          <span className="font-body text-s font-medium" style={{ color: 'var(--text-primary)' }}>
             Every member of this workspace has access
           </span>
-          <span
-            className="font-body text-xs leading-[1.5]"
-            style={{ color: 'var(--text-secondary)' }}
-          >
-            Every teammate in this workspace can query these tables and edit
-            descriptions through Oracle. Read-only — 6labs never writes back to
-            your warehouse.
+          <span className="font-body text-xs leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>
+            Every teammate in this workspace can query these tables and edit descriptions
+            through Oracle. Read-only — 6labs never writes back to your warehouse.
           </span>
-          {saEmail && (
-            <span
-              className="font-body text-xs mt-xxs"
-              style={{ color: 'var(--text-tertiary)' }}
-            >
-              Service account: <code>{saEmail}</code>
-            </span>
-          )}
+          <span className="font-body text-xs mt-xxs" style={{ color: 'var(--text-tertiary)' }}>
+            Connecting as: <code>{username}</code>
+          </span>
         </div>
       </section>
 
-      <p
-        className="font-body text-xs"
-        style={{ color: 'var(--text-tertiary)' }}
-      >
-        6labs only reads from your warehouse — we never write back. Description
-        edits live in 6labs and don&rsquo;t modify BigQuery metadata.
+      <p className="font-body text-xs" style={{ color: 'var(--text-tertiary)' }}>
+        6labs only reads from your warehouse — we never write back. Description edits live
+        in 6labs and don&rsquo;t modify Snowflake metadata.
       </p>
     </>
   )
@@ -665,22 +534,18 @@ function ConnectedBody({
 // ─── Error body ──────────────────────────────────────────────────────────────
 
 function ErrorBody({
-  projectId,
-  reason,
-  lastRefreshedAt,
+  connection,
   onReconnect,
-  onReuploadCredentials,
+  onReregisterKey,
   onRetry,
 }: {
-  projectId: string
-  reason: BigQueryErrorReason
-  lastRefreshedAt: number | null
+  connection: Extract<SnowflakeConnection, { kind: 'error' }>
   onReconnect?: () => void
-  onReuploadCredentials?: () => void
+  onReregisterKey?: () => void
   onRetry?: () => void
 }) {
-  const copy = ERROR_COPY[reason](projectId)
-  const tone: BannerTone = reason === 'network' ? 'warning' : 'error'
+  const copy = ERROR_COPY[connection.reason](connection)
+  const tone: BannerTone = connection.reason === 'network' ? 'warning' : 'error'
 
   return (
     <>
@@ -688,22 +553,15 @@ function ErrorBody({
         tone={tone}
         title={copy.title}
         body={copy.body}
-        action={copy.primaryAction({
-          onReconnect,
-          onReuploadCredentials,
-          onRetry,
-        })}
+        action={copy.primaryAction({ onReconnect, onReregisterKey, onRetry })}
         helpLinkHref={copy.helpLinkHref}
         helpLinkLabel={copy.helpLinkLabel}
       />
 
-      {lastRefreshedAt != null && (
-        <p
-          className="font-body text-xs"
-          style={{ color: 'var(--text-tertiary)' }}
-        >
-          Last healthy refresh: {formatRelative(lastRefreshedAt)}. Queries to
-          Oracle won&rsquo;t use BigQuery until this is fixed.
+      {connection.lastRefreshedAt != null && (
+        <p className="font-body text-xs" style={{ color: 'var(--text-tertiary)' }}>
+          Last healthy refresh: {formatRelative(connection.lastRefreshedAt)}. Queries to
+          Oracle won&rsquo;t use Snowflake until this is fixed.
         </p>
       )}
     </>
@@ -717,55 +575,78 @@ type ErrorCopy = {
   helpLinkLabel?: string
   primaryAction: (handlers: {
     onReconnect?: () => void
-    onReuploadCredentials?: () => void
+    onReregisterKey?: () => void
     onRetry?: () => void
   }) => ReactNode
 }
 
-const ERROR_COPY: Record<BigQueryErrorReason, (projectId: string) => ErrorCopy> = {
-  'permission-revoked': (projectId) => ({
-    title: 'Action required · Permission revoked',
+const ERROR_COPY: Record<
+  SnowflakeErrorReason,
+  (c: Extract<SnowflakeConnection, { kind: 'error' }>) => ErrorCopy
+> = {
+  'key-not-registered': (c) => ({
+    title: 'Action required · Key not registered',
     body: (
       <>
-        The service account no longer has the{' '}
-        <strong>BigQuery Data Viewer</strong> role on{' '}
-        <code>{projectId}</code>. Re-grant the role in GCP IAM, then click
-        Reconnect to validate access.
+        Snowflake no longer accepts our key-pair signature for{' '}
+        <code>{c.username}</code>. The public key may have been cleared or the user
+        rotated. Re-register our public key with <code>ALTER USER … SET RSA_PUBLIC_KEY</code>,
+        then re-register to validate.
       </>
     ),
-    helpLinkHref: 'https://cloud.google.com/iam/docs/granting-changing-revoking-access',
-    helpLinkLabel: 'How to grant IAM roles',
+    helpLinkHref: 'https://docs.snowflake.com/en/user-guide/key-pair-auth',
+    helpLinkLabel: 'How key-pair auth works',
+    primaryAction: ({ onReregisterKey }) => (
+      <Button variant="primary" size="lg" onClick={onReregisterKey}>
+        Re-register key
+      </Button>
+    ),
+  }),
+  'write-access-rejected': (c) => ({
+    title: 'Action required · Write access detected',
+    body: (
+      <>
+        The role for <code>{c.username}</code> can write to Snowflake. 6labs requires a
+        read-only role (<strong>SELECT only</strong>). Re-grant a read-only role and
+        re-register to reconnect.
+      </>
+    ),
+    helpLinkHref: 'https://docs.snowflake.com/en/user-guide/security-access-control-overview',
+    helpLinkLabel: 'How to grant read-only access',
+    primaryAction: ({ onReregisterKey }) => (
+      <Button variant="primary" size="lg" onClick={onReregisterKey}>
+        Re-register key
+      </Button>
+    ),
+  }),
+  'account-not-found': (c) => ({
+    title: 'Action required · Account not found',
+    body: (
+      <>
+        We couldn&rsquo;t resolve the account identifier{' '}
+        <code>{c.accountIdentifier || '—'}</code>. It may be mistyped or the region may
+        have changed. Reconnect with the correct identifier.
+      </>
+    ),
+    helpLinkHref: 'https://docs.snowflake.com/en/user-guide/admin-account-identifier',
+    helpLinkLabel: 'Find your account identifier',
     primaryAction: ({ onReconnect }) => (
       <Button variant="primary" size="lg" onClick={onReconnect}>
         Reconnect
       </Button>
     ),
   }),
-  'credentials-expired': (projectId) => ({
-    title: 'Action required · Credentials revoked',
+  'permission-denied': (c) => ({
+    title: 'Action required · Permission denied',
     body: (
       <>
-        The service-account JSON we have on file for <code>{projectId}</code>{' '}
-        was revoked or rotated. Generate a new key and upload it to reconnect.
+        The role no longer has <strong>SELECT</strong> on{' '}
+        <code>{c.database}</code>. Re-grant SELECT to the read-only role, then reconnect
+        to validate access.
       </>
     ),
-    helpLinkHref: 'https://cloud.google.com/iam/docs/keys-create-delete',
-    helpLinkLabel: 'How to rotate service-account keys',
-    primaryAction: ({ onReuploadCredentials }) => (
-      <Button variant="primary" size="lg" onClick={onReuploadCredentials}>
-        Re-upload JSON
-      </Button>
-    ),
-  }),
-  'project-not-found': (projectId) => ({
-    title: 'Action required · Project not found',
-    body: (
-      <>
-        GCP couldn&rsquo;t find a project named <code>{projectId}</code>. It
-        may have been renamed or deleted. Reconnect with the correct project
-        ID and a valid service-account JSON.
-      </>
-    ),
+    helpLinkHref: 'https://docs.snowflake.com/en/user-guide/security-access-control-overview',
+    helpLinkLabel: 'How to grant read-only access',
     primaryAction: ({ onReconnect }) => (
       <Button variant="primary" size="lg" onClick={onReconnect}>
         Reconnect
@@ -776,9 +657,8 @@ const ERROR_COPY: Record<BigQueryErrorReason, (projectId: string) => ErrorCopy> 
     title: 'Temporary connection issue',
     body: (
       <>
-        We couldn&rsquo;t reach BigQuery on the last refresh. This is usually
-        transient — we&rsquo;ll keep retrying in the background. Hit Retry to
-        force a check now.
+        We couldn&rsquo;t reach Snowflake on the last refresh. This is usually transient —
+        we&rsquo;ll keep retrying in the background. Hit Retry to force a check now.
       </>
     ),
     primaryAction: ({ onRetry }) => (
@@ -791,9 +671,8 @@ const ERROR_COPY: Record<BigQueryErrorReason, (projectId: string) => ErrorCopy> 
     title: 'Connection error',
     body: (
       <>
-        Something went wrong on the last refresh and we couldn&rsquo;t classify
-        the cause. Reconnect to revalidate access, or contact 6labs support if
-        the issue persists.
+        Something went wrong on the last refresh and we couldn&rsquo;t classify the cause.
+        Reconnect to revalidate access, or contact 6labs support if the issue persists.
       </>
     ),
     primaryAction: ({ onReconnect }) => (
@@ -803,4 +682,3 @@ const ERROR_COPY: Record<BigQueryErrorReason, (projectId: string) => ErrorCopy> 
     ),
   }),
 }
-

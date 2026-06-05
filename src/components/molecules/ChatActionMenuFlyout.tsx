@@ -36,11 +36,23 @@ import { ActionMenuItem } from '../atoms/ActionMenuItem'
 export interface ConnectorOption {
   id: string
   label: string
-  /** Secondary caption (e.g. project id) shown after the label */
+  /** Secondary caption (e.g. project id) shown below the label */
   secondary?: string
   icon?: ReactNode
-  /** Whether the connector is enabled in this chat */
+  /** Whether the connector is used for queries in this chat (master toggle). */
   enabled: boolean
+  /** What the scope list represents — drives the "SELECT A …" header. */
+  scopeKind?: 'project' | 'database'
+  /** Single-select scope list (radio) shown in the connector's submenu. */
+  scopes?: ConnectorScope[]
+  /** id of the currently-selected scope (single-select). */
+  selectedScopeId?: string | null
+}
+
+export interface ConnectorScope {
+  id: string
+  /** Label shown on the radio row. */
+  label: string
 }
 
 export interface AddableConnector {
@@ -52,6 +64,8 @@ export interface AddableConnector {
 interface ChatActionMenuFlyoutProps {
   connectors: ConnectorOption[]
   onConnectorsChange: (ids: string[]) => void
+  /** Selects the single active scope (project/database) for a connector. */
+  onSelectScope?: (connectorId: string, scopeId: string) => void
 
   /** Connectors available to onboard (not yet connected). */
   availableConnectors?: AddableConnector[]
@@ -60,19 +74,26 @@ interface ChatActionMenuFlyoutProps {
 
   onAttachFile?: (file: File) => void
 
-  /** Storybook control — force-open the panel at the named submenu */
-  defaultOpen?: 'root' | 'connectors' | 'add-connector'
+  /** Storybook control — force-open the panel at the named submenu. Pass a
+   *  connector id to open that connector's scope panel. */
+  defaultOpen?: 'root' | 'connectors' | 'add-connector' | (string & {})
 
   className?: string
 }
 
-type Submenu = 'connectors' | 'add-connector' | null
+// 'connectors' = the connector list panel; 'add-connector' = the onboard list;
+// `conn:<id>` = a specific connector's scope panel. All nest off 'connectors'.
+type Submenu = string | null
+
+const isConnectorPanel = (s: Submenu): s is string => !!s && s.startsWith('conn:')
+const connPanelId = (id: string) => `conn:${id}`
 
 const SUBMENU_CLOSE_DELAY_MS = 120
 
 export function ChatActionMenuFlyout({
   connectors,
   onConnectorsChange,
+  onSelectScope,
   availableConnectors = [],
   onAddConnector,
   onAttachFile,
@@ -143,7 +164,7 @@ export function ChatActionMenuFlyout({
     const handle = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
       cancelClose()
-      if (submenu === 'add-connector') setSubmenu('connectors')
+      if (submenu === 'add-connector' || isConnectorPanel(submenu)) setSubmenu('connectors')
       else if (submenu) setSubmenu(null)
       else setOpen(false)
     }
@@ -253,16 +274,10 @@ export function ChatActionMenuFlyout({
               leadingIcon={<ConnectorIcon size={16} />}
               label="Connectors"
               trailing="chevron"
-              active={submenu === 'connectors' || submenu === 'add-connector'}
-              onClick={() =>
-                setSubmenu((v) =>
-                  v === 'connectors' || v === 'add-connector'
-                    ? null
-                    : 'connectors',
-                )
-              }
+              active={submenu != null}
+              onClick={() => setSubmenu((v) => (v ? null : 'connectors'))}
             />
-            {(submenu === 'connectors' || submenu === 'add-connector') && (
+            {submenu != null && (
               <NestedPanel onMouseEnter={cancelClose}>
                 {connectors.length === 0 && (
                   <div
@@ -272,17 +287,61 @@ export function ChatActionMenuFlyout({
                     No connectors onboarded yet.
                   </div>
                 )}
-                {connectors.map((c) => (
-                  <ActionMenuItem
-                    key={c.id}
-                    leadingIcon={c.icon ?? <ConnectorIcon size={16} />}
-                    label={c.label}
-                    secondary={c.secondary}
-                    trailing="toggle"
-                    checked={c.enabled}
-                    onToggleChange={(next) => handleToggleConnector(c.id, next)}
-                  />
-                ))}
+                {connectors.map((c) => {
+                  const panel = connPanelId(c.id)
+                  const scopeWord = c.scopeKind === 'database' ? 'DATABASE' : 'PROJECT'
+                  return (
+                    <div
+                      key={c.id}
+                      className="relative"
+                      {...submenuWrapperHandlers(panel, 'connectors')}
+                    >
+                      {/* Connector row: status (On/Off) + chevron into the scope panel. */}
+                      <ActionMenuItem
+                        leadingIcon={c.icon ?? <ConnectorIcon size={16} />}
+                        label={c.label}
+                        secondary={c.enabled ? 'On' : 'Off'}
+                        trailing="chevron"
+                        active={submenu === panel}
+                        onClick={() =>
+                          setSubmenu((v) => (v === panel ? 'connectors' : panel))
+                        }
+                      />
+                      {submenu === panel && (
+                        <NestedPanel onMouseEnter={cancelClose}>
+                          {/* Master "use for queries" toggle */}
+                          <ActionMenuItem
+                            label={`Use ${c.label} for queries`}
+                            trailing="toggle"
+                            checked={c.enabled}
+                            onToggleChange={(next) => handleToggleConnector(c.id, next)}
+                          />
+                          {c.scopes && c.scopes.length > 0 && (
+                            <>
+                              <Divider />
+                              <SectionLabel>{`Select a ${scopeWord.toLowerCase()}`}</SectionLabel>
+                              <div
+                                className="flex flex-col"
+                                style={{ opacity: c.enabled ? 1 : 0.5 }}
+                              >
+                                {c.scopes.map((s) => (
+                                  <ActionMenuItem
+                                    key={s.id}
+                                    label={s.label}
+                                    trailing="radio"
+                                    checked={c.selectedScopeId === s.id}
+                                    disabled={!c.enabled}
+                                    onClick={() => onSelectScope?.(c.id, s.id)}
+                                  />
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </NestedPanel>
+                      )}
+                    </div>
+                  )
+                })}
 
                 {availableConnectors.length > 0 && (
                   <>
@@ -356,5 +415,16 @@ function Divider() {
       className="my-xxs mx-s"
       style={{ height: 1, backgroundColor: 'var(--border-subtle)' }}
     />
+  )
+}
+
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <div
+      className="px-s pt-xxs pb-xxs font-display text-2xs font-semibold uppercase tracking-[0.12em]"
+      style={{ color: 'var(--text-tertiary)' }}
+    >
+      {children}
+    </div>
   )
 }

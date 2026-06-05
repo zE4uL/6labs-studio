@@ -82,7 +82,8 @@ export const ConnectedSyncing: Story = {
       verdictReason: 'Importing tables…',
       lastRefreshedAt: null,
       tables: [],
-      orgWideAccess: false,
+      orgWideAccess: true,
+      selectedTableFqn: null,
     },
   },
 }
@@ -133,8 +134,17 @@ export const ConnectedNoTables: Story = {
       verdictReason: 'No tables were imported.',
       lastRefreshedAt: TWO_HOURS_AGO,
       tables: [],
-      orgWideAccess: false,
+      orgWideAccess: true,
+      selectedTableFqn: null,
     },
+  },
+}
+
+export const RefreshConfirmation: Story = {
+  name: 'Connected · refresh confirmation popup',
+  args: {
+    connection: { ...getMockBigQueryConnection(), lastRefreshedAt: TWO_HOURS_AGO },
+    defaultRefreshConfirmOpen: true,
   },
 }
 

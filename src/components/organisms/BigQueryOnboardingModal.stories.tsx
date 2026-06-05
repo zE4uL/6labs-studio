@@ -53,3 +53,43 @@ export const Failed: Story = {
     onClose: () => {},
   },
 }
+
+export const WritePermissionRejected: Story = {
+  name: 'Failed · write permissions rejected',
+  args: {
+    isOpen: true,
+    state: 'failed',
+    projectId: 'sixlabs-admin-warehouse',
+    fileName: 'sixlabs-admin-sa.json',
+    progress: {
+      step: 2,
+      errorAtStep: 2,
+      errorMessage:
+        'This service account has write access to BigQuery. 6labs requires a read-only key (BigQuery Data Viewer). Re-export a read-only key and reconnect.',
+    },
+    onClose: () => {},
+  },
+}
+
+export const ImportReview: Story = {
+  name: 'Progress · review complete (tables need attention)',
+  args: {
+    isOpen: true,
+    state: 'progress',
+    projectId: 'sixlabs-qa',
+    fileName: 'sixlabs-qa-sa.json',
+    progress: { step: 4, problemTableCount: 3, totalTableCount: 24 },
+    onClose: () => {},
+  },
+}
+
+export const InvalidJson: Story = {
+  name: 'Idle · selected JSON needs fixing',
+  args: {
+    isOpen: true,
+    state: 'idle',
+    initialError:
+      'The selected JSON needs to be fixed — it isn’t a valid service-account key (no project_id found). Re-export the key from GCP and try again.',
+    onClose: () => {},
+  },
+}

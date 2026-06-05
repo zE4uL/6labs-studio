@@ -59,8 +59,15 @@ export type BigQueryConnection =
       lastRefreshedAt: number | null
       /** Imported tables with editable table-level + column-level descriptions. */
       tables: BigQueryTable[]
-      /** True when the connection is shared with the whole organisation. */
+      /** True when the connection is shared with the whole organisation.
+       *  Now always true — every workspace member has access (no opt-out). */
       orgWideAccess: boolean
+      /** fqn of the single table selected for chat queries. Only one table can
+       *  be queried at a time, so this is single-select (not a multi-toggle). */
+      selectedTableFqn: string | null
+      /** GCP project the chat queries against (single-select in the composer
+       *  connector menu). Defaults to `projectId` when unset. */
+      selectedProjectId?: string | null
     }
   | {
       kind: 'error'
@@ -70,13 +77,83 @@ export type BigQueryConnection =
       lastRefreshedAt: number | null
     }
 
+// ─── Snowflake connection model ──────────────────────────────────────────────
+// Snowflake uses RSA key-pair auth (no credential-file upload). 6labs holds the
+// private key; the client registers our public key against a read-only user and
+// hands back four non-sensitive connection details. The post-connect table model
+// is the same warehouse shape as BigQuery (reuses BigQueryTable/Column/Verdict).
+
+export type SnowflakeErrorReason =
+  | 'key-not-registered' // public key isn't set on the user (DESC USER shows no RSA_PUBLIC_KEY)
+  | 'account-not-found' // bad account identifier / region
+  | 'permission-denied' // role lacks SELECT on the schema
+  | 'write-access-rejected' // user/role has write/admin scope — 6labs requires read-only
+  | 'network'
+  | 'unknown'
+
+/** The four non-sensitive connection details the client returns (PDF Step 4). */
+export interface SnowflakeConnectionDetails {
+  /** e.g. xy12345.us-east-1 */
+  accountIdentifier: string
+  username: string
+  warehouse: string
+  database: string
+}
+
+export type SnowflakeConnection =
+  | { kind: 'not-connected' }
+  | ({
+      kind: 'connected'
+      onboardedAt: number
+      syncing: boolean
+      verdict: BigQueryVerdict
+      verdictReason: string
+      lastRefreshedAt: number | null
+      tables: BigQueryTable[]
+      /** Always true — every workspace member can query (no opt-out). */
+      orgWideAccess: boolean
+      selectedTableFqn: string | null
+      /** Database the chat queries against (single-select in the composer
+       *  connector menu). Defaults to `database` when unset. */
+      selectedDatabase?: string | null
+    } & SnowflakeConnectionDetails)
+  | ({
+      kind: 'error'
+      reason: SnowflakeErrorReason
+      lastRefreshedAt: number | null
+    } & SnowflakeConnectionDetails)
+
 // ─── Connector registry (mirrors CONNECTORS in ContextConnectorsView) ────────
+
+/** A single-select query scope shown under a connector in the composer menu.
+ *  For BigQuery this is a GCP project; for Snowflake a database. */
+export interface ConnectorScope {
+  id: string
+  label: string
+}
 
 export interface OnboardedConnector {
   id: string
   label: string
   /** Secondary caption shown in the flyout (e.g. project id) */
   secondary?: string
+  /** What the scope list represents — drives the "SELECT A …" header. */
+  scopeKind: 'project' | 'database'
+  /** Single-select scope list (radio) the chat queries against. */
+  scopes: ConnectorScope[]
+  /** Currently-selected scope id. */
+  selectedScopeId: string | null
+}
+
+// Mock scope lists for the composer menu. A real backend would return the
+// projects/databases the read-only credential can see; the prototype seeds a
+// realistic spread so the single-select radio has something to choose from.
+const BQ_MOCK_PROJECTS = ['labs-demo-1', 'ultron-497407', 'sixlabs-qa', 'sixlabs-prod']
+const SF_MOCK_DATABASES = ['GAME_TELEMETRY', 'MARKETING_ANALYTICS', 'FINANCE']
+
+/** Returns the mock scope list with the live onboarded scope guaranteed present. */
+function withLiveScope(mock: string[], live: string): string[] {
+  return mock.includes(live) ? mock : [live, ...mock]
 }
 
 export interface AvailableConnector {
@@ -86,6 +163,7 @@ export interface AvailableConnector {
 
 export const AVAILABLE_CONNECTORS: AvailableConnector[] = [
   { id: 'bigquery', label: 'BigQuery' },
+  { id: 'snowflake', label: 'Snowflake' },
   { id: 'appsflyer', label: 'AppsFlyer' },
   { id: 'jira', label: 'Jira' },
   { id: 'slack', label: 'Slack' },
@@ -97,11 +175,13 @@ export const AVAILABLE_CONNECTORS: AvailableConnector[] = [
 
 interface ConnectorsState {
   bigQuery: BigQueryConnection
+  snowflake: SnowflakeConnection
 }
 
 const STORAGE_KEY = '6labs.connectors.v3'
 
 const NOT_CONNECTED: BigQueryConnection = { kind: 'not-connected' }
+const NOT_CONNECTED_SF: SnowflakeConnection = { kind: 'not-connected' }
 
 // ─── Mock onboarding payload (from connector.json, 2026-05-11) ───────────────
 // Used to seed a realistic post-connect state for the prototype. Mirrors the
@@ -175,26 +255,103 @@ export function getMockBigQueryConnection(): Extract<BigQueryConnection, { kind:
     verdictReason: "1 table(s) YELLOW: ['sixlabs-qa.oracleDataSet.app_click_data']",
     lastRefreshedAt: Date.parse('2026-05-11T07:24:53Z'),
     tables: [MOCK_APP_CLICK_DATA],
-    orgWideAccess: false,
+    orgWideAccess: true,
+    selectedTableFqn: MOCK_APP_CLICK_DATA.fqn,
+  }
+}
+
+// ─── Mock Snowflake onboarding payload ───────────────────────────────────────
+// Seeds a realistic post-connect state for the prototype. Two tables exercise
+// the verdict system: one YELLOW (missing descriptions) and one GREEN (fully
+// documented). FQNs follow Snowflake's DATABASE.SCHEMA.TABLE convention.
+
+const MOCK_SF_SESSIONS: BigQueryTable = {
+  fqn: 'GAME_TELEMETRY.PUBLIC.PLAYER_SESSIONS',
+  dataset: 'PUBLIC',
+  tableId: 'PLAYER_SESSIONS',
+  rows: 8_412_905,
+  bytes: 3_221_225_472,
+  description: '',
+  verdict: 'YELLOW',
+  verdictReasons: ['table description missing', '6/9 columns described (67%)'],
+  columns: [
+    { name: 'SESSION_ID', type: 'VARCHAR', description: 'Unique identifier for a single play session.' },
+    { name: 'PLAYER_ID', type: 'VARCHAR', description: 'Stable player identifier across devices.' },
+    { name: 'STARTED_AT', type: 'TIMESTAMP_NTZ', description: 'UTC timestamp when the session began.' },
+    { name: 'ENDED_AT', type: 'TIMESTAMP_NTZ', description: 'UTC timestamp when the session ended.' },
+    { name: 'DURATION_SEC', type: 'NUMBER', description: 'Session length in seconds.' },
+    { name: 'PLATFORM', type: 'VARCHAR', description: 'Client platform (android, ios, windows, mac).' },
+    { name: 'GAME_PKG', type: 'VARCHAR', description: '' },
+    { name: 'COUNTRY', type: 'VARCHAR', description: '' },
+    { name: 'APP_VER', type: 'VARCHAR', description: '' },
+  ],
+  llmSummary: `**Core identity**: One row per player session for the cloud-gaming client, spanning all titles.
+
+**Best grouping dimensions**: PLATFORM (windows 71% / android 22% / ios 5% / mac 2%), COUNTRY, GAME_PKG.
+
+**Watch-outs**: DURATION_SEC has a long right tail — prefer median/percentiles over AVG. Count distinct players with COUNT(DISTINCT PLAYER_ID), never COUNT(*).`,
+}
+
+const MOCK_SF_REVENUE: BigQueryTable = {
+  fqn: 'GAME_TELEMETRY.PUBLIC.IAP_REVENUE',
+  dataset: 'PUBLIC',
+  tableId: 'IAP_REVENUE',
+  rows: 1_204_771,
+  bytes: 524_288_000,
+  description: 'In-app purchase transactions, one row per completed purchase, net of refunds.',
+  verdict: 'GREEN',
+  verdictReasons: [],
+  columns: [
+    { name: 'TXN_ID', type: 'VARCHAR', description: 'Unique transaction identifier.' },
+    { name: 'PLAYER_ID', type: 'VARCHAR', description: 'Purchasing player identifier.' },
+    { name: 'PURCHASED_AT', type: 'TIMESTAMP_NTZ', description: 'UTC timestamp of the completed purchase.' },
+    { name: 'SKU', type: 'VARCHAR', description: 'Store SKU of the purchased item.' },
+    { name: 'AMOUNT_USD', type: 'NUMBER', description: 'Net revenue in USD after store fees and refunds.' },
+    { name: 'STORE', type: 'VARCHAR', description: 'Billing store (play, app_store, direct).' },
+  ],
+}
+
+export function getMockSnowflakeConnection(): Extract<SnowflakeConnection, { kind: 'connected' }> {
+  const tables = [MOCK_SF_SESSIONS, MOCK_SF_REVENUE]
+  return {
+    kind: 'connected',
+    accountIdentifier: 'xy12345.us-east-1',
+    username: 'BLUESTACKS_READONLY',
+    warehouse: 'ANALYTICS_WH',
+    database: 'GAME_TELEMETRY',
+    onboardedAt: Date.parse('2026-06-05T07:24:53Z'),
+    syncing: false,
+    verdict: 'YELLOW',
+    verdictReason: "1 table(s) YELLOW: ['GAME_TELEMETRY.PUBLIC.PLAYER_SESSIONS']",
+    lastRefreshedAt: Date.parse('2026-06-05T07:24:53Z'),
+    tables,
+    orgWideAccess: true,
+    selectedTableFqn: MOCK_SF_REVENUE.fqn,
   }
 }
 
 function readStorage(): ConnectorsState {
-  if (typeof window === 'undefined') return { bigQuery: NOT_CONNECTED }
+  if (typeof window === 'undefined') return { bigQuery: NOT_CONNECTED, snowflake: NOT_CONNECTED_SF }
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { bigQuery: NOT_CONNECTED }
+    if (!raw) return { bigQuery: NOT_CONNECTED, snowflake: NOT_CONNECTED_SF }
     const parsed = JSON.parse(raw) as Partial<ConnectorsState>
-    if (parsed.bigQuery && isValidBigQueryConnection(parsed.bigQuery)) {
-      return { bigQuery: parsed.bigQuery }
+    return {
+      bigQuery:
+        parsed.bigQuery && isValidConnection(parsed.bigQuery)
+          ? parsed.bigQuery
+          : NOT_CONNECTED,
+      snowflake:
+        parsed.snowflake && isValidConnection(parsed.snowflake)
+          ? parsed.snowflake
+          : NOT_CONNECTED_SF,
     }
-    return { bigQuery: NOT_CONNECTED }
   } catch {
-    return { bigQuery: NOT_CONNECTED }
+    return { bigQuery: NOT_CONNECTED, snowflake: NOT_CONNECTED_SF }
   }
 }
 
-function isValidBigQueryConnection(v: unknown): v is BigQueryConnection {
+function isValidConnection(v: unknown): boolean {
   if (!v || typeof v !== 'object') return false
   const k = (v as { kind?: unknown }).kind
   return k === 'not-connected' || k === 'connected' || k === 'error'
@@ -216,8 +373,8 @@ function emit() {
   listeners.forEach((l) => l())
 }
 
-function setState(next: ConnectorsState) {
-  state = next
+function setState(next: Partial<ConnectorsState>) {
+  state = { ...state, ...next }
   writeStorage(state)
   emit()
 }
@@ -262,7 +419,9 @@ export function markBigQueryConnected(args: {
       tables: carriedTables,
       orgWideAccess:
         args.orgWideAccess ??
-        (previous.kind === 'connected' ? previous.orgWideAccess : false),
+        (previous.kind === 'connected' ? previous.orgWideAccess : true),
+      selectedTableFqn:
+        previous.kind === 'connected' ? previous.selectedTableFqn : null,
     },
   })
 }
@@ -276,6 +435,13 @@ export function markBigQuerySyncComplete(payload?: {
   if (state.bigQuery.kind !== 'connected') return
   const tables = payload?.tables ?? getMockBigQueryConnection().tables
   const verdict = payload?.verdict ?? computeVerdict(tables)
+  // Keep the prior selection if it still exists; otherwise default to the
+  // first imported table so the chat always has a queryable table selected.
+  const prevSelected = state.bigQuery.selectedTableFqn
+  const selectedTableFqn =
+    prevSelected && tables.some((t) => t.fqn === prevSelected)
+      ? prevSelected
+      : (tables[0]?.fqn ?? null)
   setState({
     bigQuery: {
       ...state.bigQuery,
@@ -284,6 +450,7 @@ export function markBigQuerySyncComplete(payload?: {
       verdict,
       verdictReason: payload?.verdictReason ?? buildVerdictReason(tables),
       lastRefreshedAt: Date.now(),
+      selectedTableFqn,
     },
   })
 }
@@ -332,6 +499,23 @@ export function setBigQueryOrgWideAccess(value: boolean) {
   if (state.bigQuery.kind !== 'connected') return
   setState({
     bigQuery: { ...state.bigQuery, orgWideAccess: value },
+  })
+}
+
+/** Selects the single table the chat will query. Persisted as a user
+ *  preference (localStorage stands in for the backend in this prototype). */
+export function setBigQuerySelectedTable(fqn: string) {
+  if (state.bigQuery.kind !== 'connected') return
+  setState({
+    bigQuery: { ...state.bigQuery, selectedTableFqn: fqn },
+  })
+}
+
+/** Selects the GCP project the chat queries against (composer menu). */
+export function setBigQuerySelectedProject(projectId: string) {
+  if (state.bigQuery.kind !== 'connected') return
+  setState({
+    bigQuery: { ...state.bigQuery, selectedProjectId: projectId },
   })
 }
 
@@ -387,6 +571,156 @@ export function loadMockBigQueryConnection() {
   setState({ bigQuery: getMockBigQueryConnection() })
 }
 
+// ─── Snowflake actions ───────────────────────────────────────────────────────
+
+/**
+ * Marks Snowflake as connected. After the modal's success screen this is called
+ * with `syncing: true` (table import just starting). The follow-up
+ * markSnowflakeSyncComplete() flips syncing off and drops in the imported tables.
+ */
+export function markSnowflakeConnected(args: SnowflakeConnectionDetails & {
+  syncing?: boolean
+  orgWideAccess?: boolean
+}) {
+  const syncing = args.syncing ?? true
+  const previous = state.snowflake
+  const sameAccount =
+    previous.kind !== 'not-connected' &&
+    previous.accountIdentifier === args.accountIdentifier
+  const carriedTables =
+    previous.kind === 'connected' && sameAccount ? previous.tables : []
+  setState({
+    snowflake: {
+      kind: 'connected',
+      accountIdentifier: args.accountIdentifier,
+      username: args.username,
+      warehouse: args.warehouse,
+      database: args.database,
+      onboardedAt:
+        previous.kind === 'connected' && sameAccount ? previous.onboardedAt : Date.now(),
+      syncing,
+      verdict: syncing
+        ? 'YELLOW'
+        : previous.kind === 'connected'
+          ? previous.verdict
+          : 'YELLOW',
+      verdictReason: syncing ? 'Importing tables…' : '',
+      lastRefreshedAt: syncing ? null : Date.now(),
+      tables: carriedTables,
+      orgWideAccess:
+        args.orgWideAccess ??
+        (previous.kind === 'connected' ? previous.orgWideAccess : true),
+      selectedTableFqn:
+        previous.kind === 'connected' ? previous.selectedTableFqn : null,
+    },
+  })
+}
+
+/** Drops the seeded mock tables into the store once the "sync" timer fires. */
+export function markSnowflakeSyncComplete(payload?: {
+  tables?: BigQueryTable[]
+  verdict?: BigQueryVerdict
+  verdictReason?: string
+}) {
+  if (state.snowflake.kind !== 'connected') return
+  const tables = payload?.tables ?? getMockSnowflakeConnection().tables
+  const verdict = payload?.verdict ?? computeVerdict(tables)
+  const prevSelected = state.snowflake.selectedTableFqn
+  const selectedTableFqn =
+    prevSelected && tables.some((t) => t.fqn === prevSelected)
+      ? prevSelected
+      : (tables[0]?.fqn ?? null)
+  setState({
+    snowflake: {
+      ...state.snowflake,
+      syncing: false,
+      tables,
+      verdict,
+      verdictReason: payload?.verdictReason ?? buildVerdictReason(tables),
+      lastRefreshedAt: Date.now(),
+      selectedTableFqn,
+    },
+  })
+}
+
+export function updateSnowflakeTableDescription(fqn: string, description: string) {
+  if (state.snowflake.kind !== 'connected') return
+  const tables = state.snowflake.tables.map((t) =>
+    t.fqn === fqn ? recomputeTable({ ...t, description }) : t,
+  )
+  setState({
+    snowflake: {
+      ...state.snowflake,
+      tables,
+      verdict: computeVerdict(tables),
+      verdictReason: buildVerdictReason(tables),
+    },
+  })
+}
+
+export function updateSnowflakeColumnDescription(
+  fqn: string,
+  columnName: string,
+  description: string,
+) {
+  if (state.snowflake.kind !== 'connected') return
+  const tables = state.snowflake.tables.map((t) => {
+    if (t.fqn !== fqn) return t
+    const columns = t.columns.map((c) =>
+      c.name === columnName ? { ...c, description } : c,
+    )
+    return recomputeTable({ ...t, columns })
+  })
+  setState({
+    snowflake: {
+      ...state.snowflake,
+      tables,
+      verdict: computeVerdict(tables),
+      verdictReason: buildVerdictReason(tables),
+    },
+  })
+}
+
+export function setSnowflakeOrgWideAccess(value: boolean) {
+  if (state.snowflake.kind !== 'connected') return
+  setState({ snowflake: { ...state.snowflake, orgWideAccess: value } })
+}
+
+export function setSnowflakeSelectedTable(fqn: string) {
+  if (state.snowflake.kind !== 'connected') return
+  setState({ snowflake: { ...state.snowflake, selectedTableFqn: fqn } })
+}
+
+/** Selects the database the chat queries against (composer menu). */
+export function setSnowflakeSelectedDatabase(database: string) {
+  if (state.snowflake.kind !== 'connected') return
+  setState({ snowflake: { ...state.snowflake, selectedDatabase: database } })
+}
+
+export function markSnowflakeError(reason: SnowflakeErrorReason) {
+  const prev = state.snowflake
+  const details: SnowflakeConnectionDetails =
+    prev.kind === 'not-connected'
+      ? { accountIdentifier: '', username: '', warehouse: '', database: '' }
+      : {
+          accountIdentifier: prev.accountIdentifier,
+          username: prev.username,
+          warehouse: prev.warehouse,
+          database: prev.database,
+        }
+  const lastRefreshedAt = prev.kind === 'connected' ? prev.lastRefreshedAt : null
+  setState({ snowflake: { kind: 'error', reason, lastRefreshedAt, ...details } })
+}
+
+export function disconnectSnowflake() {
+  setState({ snowflake: NOT_CONNECTED_SF })
+}
+
+/** Seed the store with the sample Snowflake payload — used by Storybook + demos. */
+export function loadMockSnowflakeConnection() {
+  setState({ snowflake: getMockSnowflakeConnection() })
+}
+
 // ─── Subscriptions / hooks ───────────────────────────────────────────────────
 
 function subscribe(listener: () => void) {
@@ -408,6 +742,10 @@ export function useBigQueryConnection(): BigQueryConnection {
   return useConnectorsState().bigQuery
 }
 
+export function useSnowflakeConnection(): SnowflakeConnection {
+  return useConnectorsState().snowflake
+}
+
 /**
  * Hook returning the onboarded-connector list in the shape ChatActionMenuFlyout
  * expects. Connectors in error state are excluded — they're surfaced on their
@@ -415,12 +753,28 @@ export function useBigQueryConnection(): BigQueryConnection {
  */
 export function useOnboardedConnectors(): OnboardedConnector[] {
   const bq = useBigQueryConnection()
+  const sf = useSnowflakeConnection()
   const list: OnboardedConnector[] = []
   if (bq.kind === 'connected') {
+    const projects = withLiveScope(BQ_MOCK_PROJECTS, bq.projectId)
     list.push({
       id: 'bigquery',
       label: 'BigQuery',
       secondary: bq.projectId,
+      scopeKind: 'project',
+      scopes: projects.map((p) => ({ id: p, label: p })),
+      selectedScopeId: bq.selectedProjectId ?? bq.projectId,
+    })
+  }
+  if (sf.kind === 'connected') {
+    const databases = withLiveScope(SF_MOCK_DATABASES, sf.database)
+    list.push({
+      id: 'snowflake',
+      label: 'Snowflake',
+      secondary: sf.database,
+      scopeKind: 'database',
+      scopes: databases.map((d) => ({ id: d, label: d })),
+      selectedScopeId: sf.selectedDatabase ?? sf.database,
     })
   }
   return list
@@ -428,11 +782,15 @@ export function useOnboardedConnectors(): OnboardedConnector[] {
 
 export function useAvailableConnectors(): AvailableConnector[] {
   const bq = useBigQueryConnection()
-  // In error state we still treat BigQuery as "needs attention" — keep it out
+  const sf = useSnowflakeConnection()
+  // In error state we still treat a connector as "needs attention" — keep it out
   // of the "Add connector" submenu so the user doesn't double-onboard.
   const onboardedIds = new Set<string>()
   if (bq.kind === 'connected' || bq.kind === 'error') {
     onboardedIds.add('bigquery')
+  }
+  if (sf.kind === 'connected' || sf.kind === 'error') {
+    onboardedIds.add('snowflake')
   }
   return AVAILABLE_CONNECTORS.filter((c) => !onboardedIds.has(c.id))
 }

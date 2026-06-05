@@ -35,8 +35,11 @@ import {
   useOnboardedConnectors,
   useAvailableConnectors,
   requestConnectorOnboarding,
+  setBigQuerySelectedProject,
+  setSnowflakeSelectedDatabase,
 } from '../../lib/state/connectorsStore'
 import { BigQueryIcon } from '../icons/connectors/BigQueryIcon'
+import { SnowflakeIcon } from '../icons/connectors/SnowflakeIcon'
 
 export type InputFieldConsoleType = 'default' | 'mini'
 
@@ -123,19 +126,29 @@ export default function InputFieldConsole({
     return () => document.removeEventListener('mousedown', handleDocClick)
   }, [sourceOpen])
 
-  // Per-chat enabled-connector ids. We hold this locally so each chat composer
-  // has its own toggle state, but the *list* of onboarded connectors comes from
-  // the global store so they show up the moment onboarding finishes.
-  const [enabledConnectorIds, setEnabledConnectorIds] = useState<string[]>([])
+  // Per-chat connector on/off. Connectors default to ON once onboarded (so a
+  // freshly-connected warehouse is immediately usable); the user can turn one
+  // off via the "Use … for queries" toggle. We track explicit *off* choices so
+  // newly-onboarded connectors still default on without an effect.
+  const [disabledConnectorIds, setDisabledConnectorIds] = useState<string[]>([])
   const onboarded = useOnboardedConnectors()
   const available = useAvailableConnectors()
   const composedConnectors: ConnectorOption[] = useMemo(() => {
+    const iconFor = (id: string) =>
+      id === 'bigquery' ? (
+        <BigQueryIcon size={20} />
+      ) : id === 'snowflake' ? (
+        <SnowflakeIcon size={20} />
+      ) : undefined
     const fromStore = onboarded.map((c) => ({
       id: c.id,
       label: c.label,
       secondary: c.secondary,
-      icon: c.id === 'bigquery' ? <BigQueryIcon size={20} /> : undefined,
-      enabled: enabledConnectorIds.includes(c.id),
+      icon: iconFor(c.id),
+      scopeKind: c.scopeKind,
+      scopes: c.scopes,
+      selectedScopeId: c.selectedScopeId,
+      enabled: !disabledConnectorIds.includes(c.id),
     }))
     // Allow callers to inject extra connector options (e.g. for Storybook).
     const propIds = new Set(connectors.map((c) => c.id))
@@ -143,10 +156,13 @@ export default function InputFieldConsole({
       ...fromStore.filter((c) => !propIds.has(c.id)),
       ...connectors,
     ]
-  }, [onboarded, enabledConnectorIds, connectors])
+  }, [onboarded, disabledConnectorIds, connectors])
 
   const handleConnectorsChange = (ids: string[]) => {
-    setEnabledConnectorIds(ids)
+    // The flyout reports the full *enabled* set; derive the disabled set from
+    // the onboarded list so the default-on semantics hold.
+    const enabled = new Set(ids)
+    setDisabledConnectorIds(onboarded.filter((c) => !enabled.has(c.id)).map((c) => c.id))
     onConnectorsChange?.(ids)
   }
 
@@ -226,11 +242,19 @@ export default function InputFieldConsole({
           <ChatActionMenuFlyout
             connectors={composedConnectors}
             onConnectorsChange={handleConnectorsChange}
+            onSelectScope={(connectorId, scopeId) => {
+              if (connectorId === 'bigquery') setBigQuerySelectedProject(scopeId)
+              else if (connectorId === 'snowflake') setSnowflakeSelectedDatabase(scopeId)
+            }}
             availableConnectors={available.map((c) => ({
               id: c.id,
               label: c.label,
               icon:
-                c.id === 'bigquery' ? <BigQueryIcon size={20} /> : undefined,
+                c.id === 'bigquery' ? (
+                  <BigQueryIcon size={20} />
+                ) : c.id === 'snowflake' ? (
+                  <SnowflakeIcon size={20} />
+                ) : undefined,
             }))}
             onAddConnector={(id) => requestConnectorOnboarding(id)}
             onAttachFile={onAttachFile}
