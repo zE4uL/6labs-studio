@@ -26,6 +26,10 @@ import Button from './Button'
 import { DirectionsArrowIcon } from '../icons/DirectionsArrowIcon'
 import { DropdownArrowIcon } from '../icons/DropdownArrowIcon'
 import { BlueStacksIcon } from '../icons/BlueStacksIcon'
+import { YoutubeIcon } from '../icons/YoutubeIcon'
+import { SdkPcIcon } from '../icons/SdkPcIcon'
+import { SdkMobileIcon } from '../icons/SdkMobileIcon'
+import { VideoLibraryIcon } from '../icons/VideoLibraryIcon'
 import { SelectDropdown } from '../molecules/SelectDropdown'
 import {
   ChatActionMenuFlyout,
@@ -82,9 +86,10 @@ export interface InputFieldConsoleProps {
 
 const DEFAULT_PLATFORMS: PlatformOption[] = [
   { value: 'bluestacks', label: 'BlueStacks', icon: <BlueStacksIcon size={20} /> },
-  { value: 'youtube', label: 'Youtube', icon: <BlueStacksIcon size={20} /> },
-  { value: 'sdk-pc', label: 'SDK - PC', icon: <BlueStacksIcon size={20} /> },
-  { value: 'sdk-mobile', label: 'SDK - Mobile', icon: <BlueStacksIcon size={20} /> },
+  { value: 'youtube', label: 'Youtube', icon: <YoutubeIcon size={20} /> },
+  { value: 'sdk-pc', label: 'SDK - PC', icon: <SdkPcIcon size={20} /> },
+  { value: 'sdk-mobile', label: 'SDK - Mobile', icon: <SdkMobileIcon size={20} /> },
+  { value: 'library', label: 'Library', icon: <VideoLibraryIcon size={20} /> },
 ]
 
 export default function InputFieldConsole({
