@@ -33,7 +33,7 @@ import { GridIcon } from '../icons/GridIcon'
 import { ListIcon } from '../icons/ListIcon'
 import { FilterIcon } from '../icons/FilterIcon'
 
-interface LibraryVideo {
+export interface LibraryVideo {
   id: string
   title: string
   sizeBytes: number
@@ -140,8 +140,14 @@ function seedVideos(): LibraryVideo[] {
 
 type StatusFilter = 'all' | 'processing' | 'ready' | 'failed'
 
-export function VideoLibraryView({ className }: { className?: string }) {
-  const [videos, setVideos] = useState<LibraryVideo[]>(seedVideos)
+export interface VideoLibraryViewProps {
+  className?: string
+  /** Seed the library state directly — used by Storybook to show specific page states */
+  initialVideos?: LibraryVideo[]
+}
+
+export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewProps) {
+  const [videos, setVideos] = useState<LibraryVideo[]>(() => initialVideos ?? seedVideos())
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
