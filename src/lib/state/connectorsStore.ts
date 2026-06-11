@@ -316,7 +316,7 @@ export function getMockSnowflakeConnection(): Extract<SnowflakeConnection, { kin
   return {
     kind: 'connected',
     accountIdentifier: 'xy12345.us-east-1',
-    username: 'BLUESTACKS_READONLY',
+    username: 'SIXLABS_READONLY',
     warehouse: 'ANALYTICS_WH',
     database: 'GAME_TELEMETRY',
     onboardedAt: Date.parse('2026-06-05T07:24:53Z'),

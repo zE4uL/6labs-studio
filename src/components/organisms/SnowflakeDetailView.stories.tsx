@@ -19,7 +19,7 @@ type Story = StoryObj<typeof meta>
 
 const baseDetails = {
   accountIdentifier: 'xy12345.us-east-1',
-  username: 'BLUESTACKS_READONLY',
+  username: 'SIXLABS_READONLY',
   warehouse: 'ANALYTICS_WH',
   database: 'GAME_TELEMETRY',
 }

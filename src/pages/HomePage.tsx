@@ -23,6 +23,7 @@ import { RadiologistAgentView } from '../components/organisms/RadiologistAgentVi
 import { RadiologistResultsView } from '../components/organisms/RadiologistResultsView'
 import { SessionDetailsPage } from '../components/organisms/SessionDetailsPage'
 import { ContextUploadsView } from '../components/organisms/ContextUploadsView'
+import { VideoLibraryView } from '../components/organisms/VideoLibraryView'
 import { ContextConnectorsView, CONNECTORS } from '../components/organisms/ContextConnectorsView'
 import { ConnectorDetailView } from '../components/organisms/ConnectorDetailView'
 import {
@@ -60,7 +61,7 @@ import { BaristaTaskDetailPage } from '../components/organisms/BaristaTaskDetail
 import { BaristaPage } from '../components/organisms/BaristaPage'
 import { useBarista } from '../state/BaristaContext'
 
-type ActiveNav = 'home' | 'barista' | 'radiologist' | 'oracle' | 'forecaster' | 'coach' | 'guardian' | 'uploads' | 'connectors'
+type ActiveNav = 'home' | 'barista' | 'library' | 'radiologist' | 'oracle' | 'forecaster' | 'coach' | 'guardian' | 'uploads' | 'connectors'
 type RadiologistView = 'home' | 'results' | 'details'
 
 const ORACLE_SUGGESTIONS = [
@@ -412,6 +413,13 @@ export function HomePage() {
           </div>
         )
 
+      case 'library':
+        return (
+          <div className="flex flex-col items-center px-[64px] pt-[64px] pb-[64px]">
+            <VideoLibraryView />
+          </div>
+        )
+
       case 'connectors': {
         const selectedConnector = selectedConnectorId
           ? CONNECTORS.find((c) => c.id === selectedConnectorId)
@@ -613,7 +621,7 @@ export function HomePage() {
           </div>
         )}
         {/* Gradient layer — pinned to main's box, never scrolls */}
-        {(activeNav === 'home' || (activeNav === 'radiologist' && radiologistView === 'home')) && (
+        {(activeNav === 'home' || activeNav === 'library' || (activeNav === 'radiologist' && radiologistView === 'home')) && (
           <div
             className="absolute inset-0 pointer-events-none"
             style={{

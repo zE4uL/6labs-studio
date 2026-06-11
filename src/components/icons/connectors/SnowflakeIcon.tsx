@@ -1,7 +1,7 @@
 /**
  * Snowflake connector brand icon.
  *
- * Stand-in: the Snowflake six-pointed mark in brand cyan (#29B5E8) on white.
+ * The Snowflake six-pointed mark in white on a brand-cyan (#29B5E8) tile.
  * No Apparatus / Figma source exists for Snowflake yet — this is a code-first
  * prototype. Swap to the official mark once it lands in the Apparatus library.
  */
@@ -14,10 +14,10 @@ export function SnowflakeIcon({ size = 48 }: { size?: number }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect width="48" height="48" rx="12" fill="#FFFFFF" />
+      <rect width="48" height="48" rx="12" fill="#29B5E8" />
       <g
         transform="translate(24 24)"
-        stroke="#29B5E8"
+        stroke="#FFFFFF"
         strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"

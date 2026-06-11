@@ -4,15 +4,16 @@
  * Snowflake uses RSA key-pair auth (no credential upload). The flow is an
  * outbound handshake (see Snowflake_KeyPair_Setup_Guide):
  *  1. 6labs generates the key pair internally — the private key never leaves us.
- *  2. We SHOW the public key here so the admin can copy it to their Snowflake
- *     admin, alongside the SQL to create a read-only role/user and register the
- *     key (ALTER USER … SET RSA_PUBLIC_KEY).
+ *  2. We hand the admin one copyable setup script that creates a read-only
+ *     role/user and registers our public key (ALTER USER … SET RSA_PUBLIC_KEY).
+ *     The key is embedded directly in the SQL, so there's no separate key to
+ *     copy — one block to run, top to bottom.
  *  3. The admin returns four non-sensitive connection details — Account
  *     Identifier, Username, Warehouse, Database — which we collect on step 2.
  *  4. We verify connectivity (4-stage loader) and import tables.
  *
  * The idle state is a 2-step wizard:
- *  • Step 1 "Set up access in Snowflake" — copy public key + SQL snippets.
+ *  • Step 1 "Set up access in Snowflake" — copy + run the setup SQL.
  *  • Step 2 "Connection details" — the four inputs + Verify.
  *
  * progress / success / failed reuse the same step-loader pattern as BigQuery.
@@ -170,7 +171,7 @@ export function SnowflakeOnboardingModal({
 }: SnowflakeOnboardingModalProps) {
   const [step, setStep] = useState<1 | 2>(initialStep)
   const [accountIdentifier, setAccountIdentifier] = useState(details?.accountIdentifier ?? '')
-  const [username, setUsername] = useState(details?.username ?? 'BLUESTACKS_READONLY')
+  const [username, setUsername] = useState(details?.username ?? 'SIXLABS_READONLY')
   const [warehouse, setWarehouse] = useState(details?.warehouse ?? '')
   const [database, setDatabase] = useState(details?.database ?? '')
 
@@ -215,26 +216,31 @@ export function SnowflakeOnboardingModal({
     })
   }
 
-  const sqlRoleUser = `-- Create a dedicated read-only role
-CREATE ROLE BLUESTACKS_READONLY_ROLE;
+  const sqlRoleUser = `-- 1. Create a dedicated read-only role for 6labs.
+CREATE ROLE SIXLABS_READONLY_ROLE;
 
--- Grant usage on the objects 6labs should read
-GRANT USAGE ON WAREHOUSE ${warehouse || '<warehouse>'} TO ROLE BLUESTACKS_READONLY_ROLE;
-GRANT USAGE ON DATABASE ${database || '<database>'} TO ROLE BLUESTACKS_READONLY_ROLE;
-GRANT USAGE ON SCHEMA ${database || '<database>'}.<schema> TO ROLE BLUESTACKS_READONLY_ROLE;
-GRANT SELECT ON ALL TABLES IN SCHEMA ${database || '<database>'}.<schema> TO ROLE BLUESTACKS_READONLY_ROLE;
+-- 2. Let the role use the warehouse 6labs runs queries on.
+GRANT USAGE ON WAREHOUSE ${warehouse || '<warehouse>'} TO ROLE SIXLABS_READONLY_ROLE;
 
--- Create the user 6labs will connect as
-CREATE USER ${username || 'BLUESTACKS_READONLY'}
-  DEFAULT_ROLE = BLUESTACKS_READONLY_ROLE
+-- 3. Grant read access on each database 6labs should see.
+--    Run these three lines once PER DATABASE — repeat the block,
+--    swapping <database> each time, for every database you connect.
+GRANT USAGE ON DATABASE ${database || '<database>'} TO ROLE SIXLABS_READONLY_ROLE;
+GRANT USAGE ON SCHEMA ${database || '<database>'}.<schema> TO ROLE SIXLABS_READONLY_ROLE;
+GRANT SELECT ON ALL TABLES IN SCHEMA ${database || '<database>'}.<schema> TO ROLE SIXLABS_READONLY_ROLE;
+
+-- 4. Create the user 6labs will connect as.
+CREATE USER ${username || 'SIXLABS_READONLY'}
+  DEFAULT_ROLE = SIXLABS_READONLY_ROLE
   DEFAULT_WAREHOUSE = ${warehouse || '<warehouse>'};
-GRANT ROLE BLUESTACKS_READONLY_ROLE TO USER ${username || 'BLUESTACKS_READONLY'};`
+GRANT ROLE SIXLABS_READONLY_ROLE TO USER ${username || 'SIXLABS_READONLY'};`
 
-  const sqlRegisterKey = `ALTER USER ${username || 'BLUESTACKS_READONLY'}
+  const sqlRegisterKey = `-- 5. Register 6labs' public key on the user (no password is exchanged).
+ALTER USER ${username || 'SIXLABS_READONLY'}
   SET RSA_PUBLIC_KEY = '${publicKey.replace(/\n/g, '')}';`
 
-  const sqlVerify = `DESC USER ${username || 'BLUESTACKS_READONLY'};
--- Confirm the RSA_PUBLIC_KEY property is populated.`
+  const sqlVerify = `-- 6. Confirm the key registered — RSA_PUBLIC_KEY should be populated.
+DESC USER ${username || 'SIXLABS_READONLY'};`
 
   return createPortal(
     <div
@@ -311,7 +317,6 @@ GRANT ROLE BLUESTACKS_READONLY_ROLE TO USER ${username || 'BLUESTACKS_READONLY'}
           />
         ) : step === 1 ? (
           <Step1Setup
-            publicKey={publicKey}
             sqlRoleUser={sqlRoleUser}
             sqlRegisterKey={sqlRegisterKey}
             sqlVerify={sqlVerify}
@@ -345,51 +350,63 @@ GRANT ROLE BLUESTACKS_READONLY_ROLE TO USER ${username || 'BLUESTACKS_READONLY'}
 // ─── Step 1 — Set up access in Snowflake ─────────────────────────────────────
 
 function Step1Setup({
-  publicKey,
   sqlRoleUser,
   sqlRegisterKey,
   sqlVerify,
   onCancel,
   onNext,
 }: {
-  publicKey: string
   sqlRoleUser: string
   sqlRegisterKey: string
   sqlVerify: string
   onCancel: () => void
   onNext: () => void
 }) {
-  // One script instead of three separate copy blocks — the admin runs it in
-  // order, so a single copyable block is simpler than a wall of snippets.
-  const setupSql = `-- Create a read-only role & user
-${sqlRoleUser}
+  // One script, top to bottom. Each section is already numbered + commented, so
+  // we just stitch them with blank lines — no extra headers, no separate key
+  // block (the public key is embedded in step 5 of the SQL itself).
+  const setupSql = `${sqlRoleUser}
 
--- Register our public key
 ${sqlRegisterKey}
 
--- Verify the key is registered
 ${sqlVerify}`
 
   return (
     <div className="flex flex-col gap-m w-full">
       <p className="font-body text-s leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>
-        Copy your public key, then run the setup SQL in Snowflake. No passwords are
-        exchanged — our private key never leaves 6labs.
+        Run the setup SQL below in a Snowflake worksheet as an account admin. It does
+        three things, in order:
       </p>
 
-      {/* Public key — the credential to register on the read-only user. */}
-      <CodeBlock
-        label="6labs public key"
-        code={publicKey}
-        mono
-      />
+      <ol className="flex flex-col gap-xxs pl-m" style={{ listStyle: 'decimal' }}>
+        <li className="font-body text-s leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>
+          Creates a <strong style={{ color: 'var(--text-primary)' }}>read-only role</strong> and
+          grants it SELECT on the database(s) 6labs should see.
+        </li>
+        <li className="font-body text-s leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>
+          Creates the <strong style={{ color: 'var(--text-primary)' }}>user</strong> 6labs connects
+          as and registers our public key on it — no password is ever exchanged, and our private key
+          never leaves 6labs.
+        </li>
+        <li className="font-body text-s leading-[1.5]" style={{ color: 'var(--text-secondary)' }}>
+          <strong style={{ color: 'var(--text-primary)' }}>Verifies</strong> the key registered
+          correctly.
+        </li>
+      </ol>
 
-      {/* All setup SQL in one copyable block. */}
+      {/* All setup SQL in one copyable block — key embedded, no separate copy step. */}
       <CodeBlock
         label="Setup SQL"
-        sublabel="Run in Snowflake — creates the read-only user, registers the key, and verifies it."
+        sublabel="Run top to bottom in Snowflake — creates the read-only user, registers our key, and verifies it."
         code={setupSql}
       />
+
+      {/* Multiple-database note — mirrors the comma-separated input on step 2. */}
+      <p className="font-body text-xs leading-[1.5]" style={{ color: 'var(--text-tertiary)' }}>
+        <strong style={{ color: 'var(--text-secondary)' }}>Connecting more than one database?</strong>{' '}
+        Re-run the three <code>GRANT … ON DATABASE / SCHEMA / TABLES</code> lines (step 3) once for
+        each database — a separate command per database.
+      </p>
 
       <a
         href="https://docs.snowflake.com/en/user-guide/key-pair-auth"
@@ -468,24 +485,23 @@ function Step2Details({
       />
       <Input
         label="Username"
-        placeholder="BLUESTACKS_READONLY"
+        placeholder="SIXLABS_READONLY"
         value={username}
         onChange={(e) => onChange.username(e.target.value)}
       />
-      <div className="grid grid-cols-2 gap-m">
-        <Input
-          label="Warehouse"
-          placeholder="ANALYTICS_WH"
-          value={warehouse}
-          onChange={(e) => onChange.warehouse(e.target.value)}
-        />
-        <Input
-          label="Database"
-          placeholder="GAME_TELEMETRY"
-          value={database}
-          onChange={(e) => onChange.database(e.target.value)}
-        />
-      </div>
+      <Input
+        label="Warehouse"
+        placeholder="ANALYTICS_WH"
+        value={warehouse}
+        onChange={(e) => onChange.warehouse(e.target.value)}
+      />
+      <Input
+        label="Database"
+        placeholder="GAME_TELEMETRY, MARKETING_ANALYTICS"
+        value={database}
+        onChange={(e) => onChange.database(e.target.value)}
+        message="Connecting more than one? Enter names comma-separated."
+      />
 
       {/* Compact notes — kept light so the form stays the focus. */}
       <div className="flex flex-col gap-xs">
@@ -571,7 +587,7 @@ function CodeBlock({
         </span>
       )}
       <pre
-        className={`w-full overflow-x-auto p-m rounded-m font-mono text-xs leading-[1.6] ${
+        className={`w-full min-w-0 overflow-x-auto p-m rounded-m font-mono text-xs leading-[1.6] ${
           mono ? 'whitespace-pre-wrap break-all' : 'whitespace-pre'
         }`}
         style={{

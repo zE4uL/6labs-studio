@@ -23,6 +23,7 @@ import { ForecasterIcon } from '../icons/ForecasterIcon'
 import { CoachIcon } from '../icons/CoachIcon'
 import { GuardianIcon } from '../icons/GuardianIcon'
 import { UploadIcon } from '../icons/UploadIcon'
+import { VideoLibraryIcon } from '../icons/VideoLibraryIcon'
 import { ConnectorIcon } from '../icons/ConnectorIcon'
 import { ChevronIcon } from '../icons/ChevronIcon'
 import { DropdownArrowIcon } from '../icons/DropdownArrowIcon'
@@ -37,7 +38,7 @@ import { SidebarTaskItem } from '../molecules/SidebarTaskItem'
 import { SidebarProfile } from '../molecules/SidebarProfile'
 import { LanguageSelector } from '../molecules/LanguageSelector'
 
-type ActiveNav = 'home' | 'barista' | 'radiologist' | 'oracle' | 'forecaster' | 'coach' | 'guardian' | 'uploads' | 'connectors'
+type ActiveNav = 'home' | 'barista' | 'library' | 'radiologist' | 'oracle' | 'forecaster' | 'coach' | 'guardian' | 'uploads' | 'connectors'
 
 const DEFAULT_HISTORY_ITEMS: HistoryItem[] = [
   { id: 'h1', query: 'Show me players who got booyah' },
@@ -285,6 +286,13 @@ export function Sidebar({
             badge={collapsed ? undefined : 'PERSONAL AGENT'}
             badgeVariant="muted"
             onClick={() => onNavChange?.('barista')}
+            collapsed={collapsed}
+          />
+          <SidebarNavItem
+            label="Library"
+            icon={<VideoLibraryIcon size={20} />}
+            active={activeNav === 'library'}
+            onClick={() => onNavChange?.('library')}
             collapsed={collapsed}
           />
         </div>
