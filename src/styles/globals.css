@@ -333,8 +333,67 @@
   border-radius: 9999px;
   animation: video-lib-spin 0.7s linear infinite;
 }
+/* white spinner variant for use over thumbnails */
+.video-lib-spinner-light {
+  width: 12px;
+  height: 12px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #ffffff;
+  border-radius: 9999px;
+  animation: video-lib-spin 0.7s linear infinite;
+}
 @keyframes video-lib-spin {
   to { transform: rotate(360deg); }
+}
+/* sweeping scan line over analyzing thumbnails — "AI is watching the video" */
+.video-lib-scanline {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 34%;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.18) 78%,
+    rgba(255, 255, 255, 0.75) 100%
+  );
+  animation: video-lib-scan 2.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes video-lib-scan {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  12%  { opacity: 1; }
+  88%  { opacity: 1; }
+  100% { transform: translateY(300%); opacity: 0; }
+}
+/* frosted dark chip centered on analyzing thumbnails */
+.video-lib-analyzing-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: rgba(3, 13, 45, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(3, 13, 45, 0.25);
+}
+/* shimmer skeleton bars — placeholder for the AI summary being generated */
+.video-lib-skeleton {
+  height: 8px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    90deg,
+    var(--bg-subtle) 25%,
+    var(--border-subtle) 37%,
+    var(--bg-subtle) 50%
+  );
+  background-size: 400% 100%;
+  animation: video-lib-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes video-lib-shimmer {
+  0%   { background-position: 100% 0; }
+  100% { background-position: 0 0; }
 }
 
 /* ─── Apparatus: Description Box (atom) ─── */

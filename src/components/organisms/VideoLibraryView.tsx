@@ -346,7 +346,7 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
         <AgentPageHeader
           title="Library"
           description="Bulk-upload gameplay videos so Radiologist & Oracle can reference them when answering your queries."
-          iconGradient="linear-gradient(135deg, #1770EF 0%, #7B4CFF 100%)"
+          iconGradient="linear-gradient(135deg, #6431E0 0%, #7B4CFF 55%, #8FA8F8 100%)"
           icon={<VideoLibraryIcon size={40} />}
         />
         {!isEmpty && (
@@ -382,16 +382,13 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
         /* ── Empty library ── */
         <div
           className={[
-            'flex flex-col items-center gap-xl p-xxl rounded-3xl cursor-pointer transition-colors duration-150',
+            'flex flex-col items-center gap-xl p-xxl mt-xl rounded-3xl cursor-pointer transition-colors duration-150',
             dragOver ? 'context-uploader-dragover' : 'context-uploader',
           ].join(' ')}
           role="button"
           tabIndex={0}
           onClick={() => inputRef.current?.click()}
         >
-          <div className="size-[72px] rounded-2xl flex items-center justify-center text-white" style={{ background: 'linear-gradient(135deg, #1770EF 0%, #7B4CFF 100%)' }}>
-            <VideoLibraryIcon size={40} />
-          </div>
           <div className="flex flex-col items-center gap-xxs">
             <p className="font-display text-m font-semibold" style={{ color: 'var(--text-primary)' }}>
               Drop videos here or click to upload

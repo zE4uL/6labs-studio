@@ -169,6 +169,18 @@ export function VideoLibraryCard({
             </div>
           )}
 
+          {/* analyzing treatment — scan line + compact frosted spinner chip */}
+          {isProcessing && (
+            <>
+              <div className="video-lib-scanline" aria-hidden />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="video-lib-analyzing-chip !gap-0 !px-xs !py-xs">
+                  <span className="video-lib-spinner-light" aria-hidden />
+                </span>
+              </div>
+            </>
+          )}
+
           {/* select checkbox */}
           <div
             className={[
@@ -251,7 +263,12 @@ export function VideoLibraryCard({
                     Available to Radiologist &amp; Oracle
                   </>
                 )}
-                {isProcessing && 'Analyzing — agents will use this once ready'}
+                {isProcessing && (
+                <>
+                  <span className="video-lib-spinner shrink-0" aria-hidden />
+                  Analyzing — agents will use this once ready
+                </>
+              )}
                 {isUploading && 'Uploading…'}
                 {isFailed && (errorMessage ?? 'Not referenceable until re-analyzed')}
               </span>
@@ -339,6 +356,21 @@ export function VideoLibraryCard({
           </div>
         )}
 
+        {/* analyzing treatment — sweeping scan line + frosted chip */}
+        {isProcessing && (
+          <>
+            <div className="video-lib-scanline" aria-hidden />
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="video-lib-analyzing-chip">
+                <span className="video-lib-spinner-light" aria-hidden />
+                <span className="font-display text-2xs font-semibold uppercase tracking-[0.12em] text-white">
+                  Analyzing video…
+                </span>
+              </span>
+            </div>
+          </>
+        )}
+
         {/* select checkbox — top-left, on hover or when selection active */}
         <div
           className={[
@@ -352,10 +384,12 @@ export function VideoLibraryCard({
           </span>
         </div>
 
-        {/* status badge — top-right */}
-        <div className="absolute top-s right-s">
-          <StatusBadge status={status} />
-        </div>
+        {/* status badge — top-right (hidden while analyzing: the center chip already says it) */}
+        {!isProcessing && (
+          <div className="absolute top-s right-s">
+            <StatusBadge status={status} />
+          </div>
+        )}
 
         {/* duration — bottom-right, only meaningful when ready */}
         {isReady && durationLabel && (
@@ -436,13 +470,21 @@ export function VideoLibraryCard({
           )}
 
           {/* description preview */}
-          {description && (
+          {description && !isProcessing && (
             <p
               className="font-body text-xs leading-[1.5] line-clamp-2 pt-xxs"
               style={{ color: 'var(--text-secondary)' }}
             >
               {description}
             </p>
+          )}
+
+          {/* analysis in progress — shimmer placeholder where the AI summary will appear */}
+          {isProcessing && (
+            <div className="flex flex-col gap-xs pt-xs" aria-hidden>
+              <span className="video-lib-skeleton w-full" />
+              <span className="video-lib-skeleton w-[70%]" />
+            </div>
           )}
 
           {/* failed error */}
@@ -461,7 +503,12 @@ export function VideoLibraryCard({
                   Available to Radiologist &amp; Oracle
                 </>
               )}
-              {isProcessing && 'Analyzing — agents will use this once ready'}
+              {isProcessing && (
+                <>
+                  <span className="video-lib-spinner shrink-0" aria-hidden />
+                  Analyzing — agents will use this once ready
+                </>
+              )}
               {isUploading && 'Uploading…'}
               {isFailed && 'Not referenceable until re-analyzed'}
             </span>
