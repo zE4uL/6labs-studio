@@ -119,12 +119,12 @@ export function VideoCardList({
       {/* Content */}
       <div className="flex flex-col flex-1 min-w-0 gap-s p-m">
         <div className="flex flex-col gap-xs w-full min-w-0">
-          {/* Title row */}
-          <div className="flex items-center justify-between w-full">
-            <span className="font-display text-s font-semibold text-base-900 leading-[1.5] whitespace-nowrap">
+          {/* Title row — single-line truncate for dense list rows */}
+          <div className="flex items-center justify-between gap-s w-full min-w-0">
+            <span className="flex-1 min-w-0 font-display text-s font-semibold text-base-900 leading-[1.5] truncate">
               {sessionId}
             </span>
-            <div className="flex gap-xs items-center">
+            <div className="flex gap-xs items-center shrink-0">
               <CalendarIcon size={16} className="text-base-600" />
               <span className="font-body text-xs text-base-600 leading-[1.5] whitespace-nowrap">
                 {date}

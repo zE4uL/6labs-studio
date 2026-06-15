@@ -442,7 +442,7 @@ export function VideoLibraryCard({
       ) : (
         <div className="flex flex-col gap-xxs p-m min-w-0">
           <span
-            className="font-display text-s font-semibold truncate"
+            className="font-display text-s font-semibold line-clamp-2"
             style={{ color: 'var(--text-primary)' }}
           >
             {title}

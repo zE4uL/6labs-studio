@@ -13,7 +13,7 @@
  * Synced: 2026-04-06
  */
 
-import { useState, useRef } from 'react'
+import { useState, useRef, type ComponentProps } from 'react'
 import { AgentPageHeader } from '../molecules/AgentPageHeader'
 import { RadiologistIcon } from '../icons/RadiologistIcon'
 import InputFieldConsole from '../ui/InputFieldConsole'
@@ -26,9 +26,15 @@ const RADIOLOGIST_GRADIENT =
 interface RadiologistAgentViewProps {
   className?: string
   onSubmit?: (query: string) => void
+  /** Controlled console source (platform) selection */
+  selectedSource?: string
+  /** Called when the user picks a source in the console popup */
+  onSourceChange?: (value: string) => void
+  /** Sessions for the gallery — defaults to the demo session set */
+  sessions?: ComponentProps<typeof VideosContainer>['sessions']
 }
 
-export function RadiologistAgentView({ className, onSubmit }: RadiologistAgentViewProps) {
+export function RadiologistAgentView({ className, onSubmit, selectedSource, onSourceChange, sessions }: RadiologistAgentViewProps) {
   const [query, setQuery] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const blurTimeout = useRef<ReturnType<typeof setTimeout>>()
@@ -78,6 +84,8 @@ export function RadiologistAgentView({ className, onSubmit }: RadiologistAgentVi
             onFocus={handleFocus}
             onBlur={handleBlur}
             placeholder="Search for actions, objects and events in your game..."
+            selectedPlatform={selectedSource}
+            onPlatformChange={onSourceChange}
           />
 
           {showSuggestions && !query.trim() && (
@@ -90,7 +98,7 @@ export function RadiologistAgentView({ className, onSubmit }: RadiologistAgentVi
 
       {/* Videos gallery — full content width */}
       <div className="w-full mt-xxl4">
-        <VideosContainer />
+        <VideosContainer sessions={sessions} />
       </div>
     </div>
   )

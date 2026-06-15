@@ -14,16 +14,15 @@
 import { useState } from 'react'
 import { RadiologistIcon } from '../icons/RadiologistIcon'
 import { OracleIcon } from '../icons/OracleIcon'
-import { ForecasterIcon } from '../icons/ForecasterIcon'
+import { SpecializedAgentsIcon } from '../icons/SpecializedAgentsIcon'
 import { AgentTabItem } from '../molecules/AgentTabItem'
 import InputFieldConsole from '../ui/InputFieldConsole'
 
-type Agent = 'radiologist' | 'oracle' | 'forecaster'
+type Agent = 'radiologist' | 'oracle'
 
 const AGENT_PLACEHOLDERS: Record<Agent, string> = {
   radiologist: 'Search for actions, objects and events in your game...',
   oracle: 'Ask Oracle anything about your game data...',
-  forecaster: 'Forecaster coming soon...',
 }
 
 interface HeroSectionProps {
@@ -32,13 +31,19 @@ interface HeroSectionProps {
   activeAgent?: Agent
   /** Called when the user switches agent tabs */
   onAgentChange?: (agent: Agent) => void
+  /** Controlled console source (platform) selection */
+  selectedSource?: string
+  /** Called when the user picks a source in the console popup */
+  onSourceChange?: (value: string) => void
   /** Called when the user submits a query from the hero input */
   onSubmit?: (query: string, agent: Agent) => void
+  /** Called when the user opens the Specialized Agents hub from the tab row */
+  onOpenSpecialized?: () => void
 }
 
 export type { Agent }
 
-export function HeroSection({ className, activeAgent: controlledAgent, onAgentChange, onSubmit }: HeroSectionProps) {
+export function HeroSection({ className, activeAgent: controlledAgent, onAgentChange, selectedSource, onSourceChange, onSubmit, onOpenSpecialized }: HeroSectionProps) {
   const [internalAgent, setInternalAgent] = useState<Agent>('radiologist')
   const activeAgent = controlledAgent ?? internalAgent
 
@@ -107,10 +112,10 @@ export function HeroSection({ className, activeAgent: controlledAgent, onAgentCh
               onClick={() => handleAgentChange('oracle')}
             />
             <AgentTabItem
-              label="Forecaster"
-              icon={<ForecasterIcon size={20} />}
-              active={activeAgent === 'forecaster'}
-              onClick={() => handleAgentChange('forecaster')}
+              label="Specialized Agents"
+              icon={<SpecializedAgentsIcon size={20} />}
+              active={false}
+              onClick={() => onOpenSpecialized?.()}
             />
           </div>
         </div>
@@ -125,6 +130,8 @@ export function HeroSection({ className, activeAgent: controlledAgent, onAgentCh
             }
           }}
           placeholder={placeholder}
+          selectedPlatform={selectedSource}
+          onPlatformChange={onSourceChange}
         />
       </div>
     </div>

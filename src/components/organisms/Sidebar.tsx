@@ -16,12 +16,10 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { HomeIcon } from '../icons/HomeIcon'
-import { BaristaIcon } from '../icons/BaristaIcon'
 import { RadiologistIcon } from '../icons/RadiologistIcon'
 import { OracleIcon } from '../icons/OracleIcon'
 import { ForecasterIcon } from '../icons/ForecasterIcon'
-import { CoachIcon } from '../icons/CoachIcon'
-import { GuardianIcon } from '../icons/GuardianIcon'
+import { SpecializedAgentsIcon } from '../icons/SpecializedAgentsIcon'
 import { UploadIcon } from '../icons/UploadIcon'
 import { VideoLibraryIcon } from '../icons/VideoLibraryIcon'
 import { ConnectorIcon } from '../icons/ConnectorIcon'
@@ -38,7 +36,7 @@ import { SidebarTaskItem } from '../molecules/SidebarTaskItem'
 import { SidebarProfile } from '../molecules/SidebarProfile'
 import { LanguageSelector } from '../molecules/LanguageSelector'
 
-type ActiveNav = 'home' | 'barista' | 'library' | 'radiologist' | 'oracle' | 'forecaster' | 'coach' | 'guardian' | 'uploads' | 'connectors'
+type ActiveNav = 'home' | 'barista' | 'library' | 'radiologist' | 'oracle' | 'forecaster' | 'coach' | 'guardian' | 'specialized' | 'uploads' | 'connectors'
 
 const DEFAULT_HISTORY_ITEMS: HistoryItem[] = [
   { id: 'h1', query: 'Show me players who got booyah' },
@@ -280,15 +278,6 @@ export function Sidebar({
             collapsed={collapsed}
           />
           <SidebarNavItem
-            label="Barista"
-            icon={<BaristaIcon size={20} />}
-            active={activeNav === 'barista'}
-            badge={collapsed ? undefined : 'PERSONAL AGENT'}
-            badgeVariant="muted"
-            onClick={() => onNavChange?.('barista')}
-            collapsed={collapsed}
-          />
-          <SidebarNavItem
             label="Library"
             icon={<VideoLibraryIcon size={20} />}
             active={activeNav === 'library'}
@@ -322,12 +311,21 @@ export function Sidebar({
                   <SidebarNavItem label="Radiologist" icon={<RadiologistIcon size={20} />} active={activeNav === 'radiologist'} onClick={() => onNavChange?.('radiologist')} />
                   <SidebarNavItem label="Oracle" icon={<OracleIcon size={20} />} active={activeNav === 'oracle' && !hasActiveHistory} onClick={() => onNavChange?.('oracle')} />
                   <SidebarNavItem label="Forecaster" icon={<ForecasterIcon size={20} />} active={activeNav === 'forecaster'} badge="COMING SOON" badgeVariant="outlined" disabled />
-                  <SidebarNavItem label="Coach" icon={<CoachIcon size={20} />} active={activeNav === 'coach'} onClick={() => onNavChange?.('coach')} />
-                  <SidebarNavItem label="Guardian" icon={<GuardianIcon size={20} />} active={activeNav === 'guardian'} onClick={() => onNavChange?.('guardian')} />
                 </div>
               )}
             </div>
           )}
+
+          {/* Specialized Agents hub — single entry to the agent card grid */}
+          <div className="flex flex-col items-start shrink-0 w-full">
+            <SidebarNavItem
+              label="Specialized Agents"
+              icon={<SpecializedAgentsIcon size={20} />}
+              active={activeNav === 'specialized'}
+              onClick={() => onNavChange?.('specialized')}
+              collapsed={collapsed}
+            />
+          </div>
 
           {/* Context section */}
           <div className="flex flex-col items-start shrink-0 w-full">

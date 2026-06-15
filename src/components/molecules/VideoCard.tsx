@@ -119,12 +119,12 @@ export function VideoCard({
       {/* Content */}
       <div className="flex flex-col gap-s shrink-0 p-m w-full">
         <div className="flex flex-col gap-xs w-full">
-          {/* Title row */}
-          <div className="flex items-center justify-between w-full">
-            <span className="font-display text-s font-semibold text-base-900 leading-[1.5] whitespace-nowrap">
+          {/* Title row — title clamps to 2 lines, date stays pinned to the first line */}
+          <div className="flex items-start justify-between gap-s w-full min-w-0">
+            <span className="flex-1 min-w-0 font-display text-s font-semibold text-base-900 leading-[1.5] line-clamp-2">
               {sessionId}
             </span>
-            <div className="flex gap-xs items-center">
+            <div className="flex gap-xs items-center shrink-0 pt-[2px]">
               <CalendarIcon size={16} className="text-base-600" />
               <span className="font-body text-xs text-base-600 leading-[1.5] whitespace-nowrap">
                 {date}

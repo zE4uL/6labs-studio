@@ -16,11 +16,12 @@
  *
  * Code-first prototype — no Figma source yet.
  */
-import { useEffect, useRef, useState, type DragEvent, type ChangeEvent } from 'react'
+import { useEffect, useState, type DragEvent } from 'react'
 import { VideoLibraryCard, type VideoStatus } from '../molecules/VideoLibraryCard'
 import { AgentPageHeader } from '../molecules/AgentPageHeader'
 import { FilterTag } from '../atoms/FilterTag'
 import { PopupModal } from '../molecules/PopupModal'
+import { UploadVideosModal, formatSize } from './UploadVideosModal'
 import { VideosEmptyState } from '../molecules/VideosEmptyState'
 import Input from '../ui/Input'
 import Button from '../ui/Button'
@@ -51,10 +52,6 @@ export interface LibraryVideo {
   willFail?: boolean
 }
 
-const MAX_BYTES = 500 * 1024 * 1024 // 500MB
-const VIDEO_EXT = ['.mp4', '.mov', '.webm', '.avi', '.mkv', '.m4v']
-const ACCEPT = 'video/*,.mp4,.mov,.webm,.avi,.mkv,.m4v'
-
 const ANALYZE_FAIL_RATE = 0.18
 const GRADIENTS = [
   'linear-gradient(135deg, #1770EF 0%, #7B4CFF 100%)',
@@ -73,19 +70,8 @@ function gradientFor(id: string): string {
   return GRADIENTS[h % GRADIENTS.length]
 }
 
-function formatSize(bytes: number): string {
-  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`
-  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(0)} MB`
-  if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} KB`
-  return `${bytes} B`
-}
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-}
-function isVideoFile(f: File): boolean {
-  if (f.type.startsWith('video/')) return true
-  const lower = f.name.toLowerCase()
-  return VIDEO_EXT.some((ext) => lower.endsWith(ext))
 }
 
 // ── Seed: mixed states so the page is alive on first paint ──
@@ -152,12 +138,12 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [activeTags, setActiveTags] = useState<Set<string>>(new Set())
-  const [rejections, setRejections] = useState<{ name: string; reason: string }[]>([])
   const [dragOver, setDragOver] = useState(false)
   const [deleteIds, setDeleteIds] = useState<string[] | null>(null)
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [filterOpen, setFilterOpen] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [uploadOpen, setUploadOpen] = useState(false)
+  const [dropFiles, setDropFiles] = useState<File[] | undefined>(undefined)
 
   // ── Lifecycle simulation: single ticking interval reads latest state ──
   useEffect(() => {
@@ -198,50 +184,51 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
     return () => window.clearInterval(tick)
   }, [])
 
-  // ── Upload intake + validation ──
-  const acceptFiles = (files: File[]) => {
-    const rejected: { name: string; reason: string }[] = []
-    const existingNames = new Set(videos.map((v) => v.title.toLowerCase()))
-    const accepted: LibraryVideo[] = []
+  // ── Upload flow — staging + tags handled in UploadVideosModal ──
+  const existingNames = new Set(videos.map((v) => v.title.toLowerCase()))
 
-    for (const f of files) {
-      if (!isVideoFile(f)) {
-        rejected.push({ name: f.name, reason: 'Not a video file' })
-        continue
-      }
-      if (f.size > MAX_BYTES) {
-        rejected.push({ name: f.name, reason: `Exceeds 500 MB (${formatSize(f.size)})` })
-        continue
-      }
-      if (existingNames.has(f.name.toLowerCase())) {
-        rejected.push({ name: f.name, reason: 'Already in your library' })
-        continue
-      }
-      existingNames.add(f.name.toLowerCase())
-      accepted.push({
-        id: nextId(),
-        title: f.name,
-        sizeBytes: f.size || Math.floor(40 * 1024 * 1024 + Math.random() * 300 * 1024 * 1024),
-        status: 'uploading',
-        progress: 0,
-        tags: [],
-        addedAt: Date.now(),
-        willFail: Math.random() < ANALYZE_FAIL_RATE,
-      })
-    }
-
-    if (accepted.length) setVideos((prev) => [...accepted, ...prev])
-    setRejections(rejected)
+  const openUpload = (files?: File[]) => {
+    setDropFiles(files)
+    setUploadOpen(true)
+    setDragOver(false)
   }
 
-  const handleInput = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.length) acceptFiles(Array.from(e.target.files))
-    e.target.value = ''
+  /** Commit a tagged batch from the modal into the library */
+  const commitUpload = (files: File[], tags: string[]) => {
+    const stamp = Date.now()
+    const entries: LibraryVideo[] = files.map((f, i) => ({
+      id: nextId(),
+      title: f.name,
+      sizeBytes: f.size || Math.floor(40 * 1024 * 1024 + Math.random() * 300 * 1024 * 1024),
+      status: 'uploading',
+      progress: 0,
+      tags,
+      addedAt: stamp - i,
+      willFail: Math.random() < ANALYZE_FAIL_RATE,
+    }))
+    if (entries.length) setVideos((prev) => [...entries, ...prev])
   }
+
+  /** Demo: simulate a CLI batch import of N clips with the given tags */
+  const simulateCliImport = (count: number, tags: string[]) => {
+    const stamp = Date.now()
+    const entries: LibraryVideo[] = Array.from({ length: count }, (_, i) => ({
+      id: nextId(),
+      title: `clip-${String(i + 1).padStart(4, '0')}.mp4`,
+      sizeBytes: Math.floor(40 * 1024 * 1024 + Math.random() * 300 * 1024 * 1024),
+      status: 'uploading',
+      progress: Math.floor(Math.random() * 30),
+      tags,
+      addedAt: stamp - i,
+      willFail: Math.random() < ANALYZE_FAIL_RATE,
+    }))
+    setVideos((prev) => [...entries, ...prev])
+  }
+
   const handleDrop = (e: DragEvent) => {
     e.preventDefault()
     setDragOver(false)
-    if (e.dataTransfer.files?.length) acceptFiles(Array.from(e.dataTransfer.files))
+    if (e.dataTransfer.files?.length) openUpload(Array.from(e.dataTransfer.files))
   }
 
   // ── Mutations ──
@@ -330,8 +317,6 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
       onDragLeave={() => setDragOver(false)}
       onDrop={handleDrop}
     >
-      <input ref={inputRef} type="file" multiple accept={ACCEPT} className="hidden" onChange={handleInput} />
-
       {/* drag overlay (populated state) */}
       {dragOver && !isEmpty && (
         <div className="absolute inset-0 z-30 flex items-center justify-center rounded-3xl context-uploader-dragover pointer-events-none">
@@ -350,33 +335,11 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
           icon={<VideoLibraryIcon size={40} />}
         />
         {!isEmpty && (
-          <Button variant="primary" size="lg" leftIcon={<UploadIcon size={20} />} onClick={() => inputRef.current?.click()}>
+          <Button variant="primary" size="lg" leftIcon={<UploadIcon size={20} />} onClick={() => openUpload()}>
             Upload videos
           </Button>
         )}
       </div>
-
-      {/* ── Rejections banner ── */}
-      {rejections.length > 0 && (
-        <div
-          className="flex items-start gap-s p-m rounded-xl"
-          style={{ backgroundColor: 'var(--error-bg)', border: '1px solid var(--error)' }}
-        >
-          <div className="flex-1 min-w-0 flex flex-col gap-xxs">
-            <span className="font-display text-s font-semibold" style={{ color: 'var(--error)' }}>
-              {rejections.length} file{rejections.length > 1 ? 's' : ''} couldn’t be added
-            </span>
-            {rejections.map((r) => (
-              <span key={r.name} className="font-body text-xs" style={{ color: 'var(--text-secondary)' }}>
-                <span className="font-semibold">{r.name}</span> — {r.reason}
-              </span>
-            ))}
-          </div>
-          <Button variant="transparent" size="md" iconOnly onClick={() => setRejections([])} aria-label="Dismiss">
-            <CloseIcon size={16} />
-          </Button>
-        </div>
-      )}
 
       {isEmpty ? (
         /* ── Empty library ── */
@@ -387,7 +350,7 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
           ].join(' ')}
           role="button"
           tabIndex={0}
-          onClick={() => inputRef.current?.click()}
+          onClick={() => openUpload()}
         >
           <div className="flex flex-col items-center gap-xxs">
             <p className="font-display text-m font-semibold" style={{ color: 'var(--text-primary)' }}>
@@ -639,6 +602,16 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
         primaryVariant="danger"
         secondaryLabel="Cancel"
         onConfirm={confirmDelete}
+      />
+
+      {/* ── Upload modal (files + tags · or CLI) ── */}
+      <UploadVideosModal
+        isOpen={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        initialFiles={dropFiles}
+        existingNames={existingNames}
+        onConfirm={commitUpload}
+        onSimulateImport={simulateCliImport}
       />
     </div>
   )

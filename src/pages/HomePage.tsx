@@ -23,7 +23,9 @@ import { RadiologistAgentView } from '../components/organisms/RadiologistAgentVi
 import { RadiologistResultsView } from '../components/organisms/RadiologistResultsView'
 import { SessionDetailsPage } from '../components/organisms/SessionDetailsPage'
 import { ContextUploadsView } from '../components/organisms/ContextUploadsView'
+import { SpecializedAgentsView } from '../components/organisms/SpecializedAgentsView'
 import { VideoLibraryView } from '../components/organisms/VideoLibraryView'
+import { LIBRARY_SESSIONS } from '../lib/librarySessions'
 import { ContextConnectorsView, CONNECTORS } from '../components/organisms/ContextConnectorsView'
 import { ConnectorDetailView } from '../components/organisms/ConnectorDetailView'
 import {
@@ -61,7 +63,7 @@ import { BaristaTaskDetailPage } from '../components/organisms/BaristaTaskDetail
 import { BaristaPage } from '../components/organisms/BaristaPage'
 import { useBarista } from '../state/BaristaContext'
 
-type ActiveNav = 'home' | 'barista' | 'library' | 'radiologist' | 'oracle' | 'forecaster' | 'coach' | 'guardian' | 'uploads' | 'connectors'
+type ActiveNav = 'home' | 'barista' | 'library' | 'radiologist' | 'oracle' | 'forecaster' | 'coach' | 'guardian' | 'specialized' | 'uploads' | 'connectors'
 type RadiologistView = 'home' | 'results' | 'details'
 
 const ORACLE_SUGGESTIONS = [
@@ -219,7 +221,13 @@ export function HomePage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [language, setLanguage] = useState('EN')
   const [heroAgent, setHeroAgent] = useState<Agent>('radiologist')
+  // Console source (sources popup) — 'library' switches the Radiologist gallery
+  // to the videos available in the Library
+  const [consoleSource, setConsoleSource] = useState('bluestacks')
+  const gallerySessions = consoleSource === 'library' ? LIBRARY_SESSIONS : undefined
   const [selectedConnectorId, setSelectedConnectorId] = useState<string | null>(null)
+  // Specialized Agents hub: null = card grid, set = that agent's chat flow.
+  const [specializedAgentId, setSpecializedAgentId] = useState<string | null>(null)
   // Unsaved-changes guard for the connector detail view.
   const [connectorDirty, setConnectorDirty] = useState(false)
   const [pendingExit, setPendingExit] = useState<(() => void) | null>(null)
@@ -401,10 +409,22 @@ export function HomePage() {
                 <RadiologistAgentView
                   className="w-full"
                   onSubmit={(query) => enterRadiologistResults(query)}
+                  selectedSource={consoleSource}
+                  onSourceChange={setConsoleSource}
+                  sessions={gallerySessions}
                 />
               </div>
             )
         }
+
+      case 'specialized':
+        return (
+          <SpecializedAgentsView
+            selectedAgentId={specializedAgentId}
+            onSelectAgent={setSpecializedAgentId}
+            onBack={() => setSpecializedAgentId(null)}
+          />
+        )
 
       case 'uploads':
         return (
@@ -520,12 +540,18 @@ export function HomePage() {
               className="w-full max-w-[800px]"
               activeAgent={heroAgent}
               onAgentChange={setHeroAgent}
+              selectedSource={consoleSource}
+              onSourceChange={setConsoleSource}
               onSubmit={(query, agent) => {
                 if (agent === 'radiologist') {
                   enterRadiologistResults(query)
                 } else if (agent === 'oracle') {
                   setActiveNav('oracle')
                 }
+              }}
+              onOpenSpecialized={() => {
+                setSpecializedAgentId(null)
+                setActiveNav('specialized')
               }}
             />
             <div className="w-full mt-xxl4">
@@ -545,7 +571,7 @@ export function HomePage() {
                   </div>
                 </div>
               ) : (
-                <VideosContainer />
+                <VideosContainer sessions={gallerySessions} />
               )}
             </div>
           </div>
@@ -579,6 +605,8 @@ export function HomePage() {
               setActiveNav(nav)
               setActiveHistoryId(null)
               if (nav !== 'connectors') setSelectedConnectorId(null)
+              // Clicking the hub nav always returns to the agent grid.
+              setSpecializedAgentId(null)
             }
             if (nav !== 'connectors') {
               requestConnectorExit(applyNav)
@@ -621,7 +649,7 @@ export function HomePage() {
           </div>
         )}
         {/* Gradient layer — pinned to main's box, never scrolls */}
-        {(activeNav === 'home' || activeNav === 'library' || (activeNav === 'radiologist' && radiologistView === 'home')) && (
+        {(activeNav === 'home' || activeNav === 'library' || (activeNav === 'radiologist' && radiologistView === 'home') || (activeNav === 'specialized' && specializedAgentId === null)) && (
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
@@ -639,7 +667,8 @@ export function HomePage() {
           'relative z-10 h-full',
           // Views that manage their own scrolling
           (activeNav === 'radiologist' && radiologistView !== 'home') ||
-          activeNav === 'barista'
+          activeNav === 'barista' ||
+          (activeNav === 'specialized' && specializedAgentId !== null)
             ? 'overflow-hidden'
             : 'overflow-y-auto',
         ].join(' ')}>

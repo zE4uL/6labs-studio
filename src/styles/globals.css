@@ -1821,6 +1821,27 @@ textarea { resize: none; font-family: var(--font-body); }
   padding-top: 32px;
 }
 
+/* ─── Specialized Agents — hub cards + chat flow ─── */
+.specialized-card {
+  background-color: var(--bg-elements);
+  border: 1px solid var(--border-default);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+.specialized-card:hover {
+  border-color: var(--brand-hover);
+  box-shadow: var(--shadow-big);
+  transform: translateY(-3px);
+}
+.specialized-input-overlay {
+  z-index: 2;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--bg-page) 28%
+  );
+  padding-top: 32px;
+}
+
 /* ─── Oracle Flow — Shimmer animation for AI thinking state ─── */
 /* ─── Oracle Flow — Thinking step spinner ─── */
 @keyframes oracle-spin {
