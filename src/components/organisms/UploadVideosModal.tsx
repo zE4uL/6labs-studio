@@ -200,19 +200,14 @@ export function UploadVideosModal({
         {/* Tabs */}
         <div className="flex items-center gap-xxs p-xxs rounded-xl shrink-0 w-fit" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-subtle)' }}>
           {([['files', 'Upload files'], ['cli', 'Bulk via CLI']] as const).map(([val, label]) => (
-            <button
+            <Button
               key={val}
-              type="button"
+              variant={tab === val ? 'secondary' : 'transparent'}
+              size="md"
               onClick={() => setTab(val)}
-              className="px-m py-xs rounded-lg font-display text-s font-semibold transition-colors"
-              style={
-                tab === val
-                  ? { backgroundColor: 'var(--bg-elements)', color: 'var(--text-primary)', boxShadow: '0 1px 3px rgba(3,13,45,0.1)' }
-                  : { color: 'var(--text-tertiary)' }
-              }
             >
               {label}
-            </button>
+            </Button>
           ))}
         </div>
 
