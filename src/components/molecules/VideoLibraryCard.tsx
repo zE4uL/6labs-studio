@@ -280,20 +280,23 @@ export function VideoLibraryCard({
               <span className="font-body text-xs" style={{ color: 'var(--text-placeholder)' }}>
                 {sizeLabel} &middot; {dateLabel}
               </span>
-              <span
-                className="inline-flex items-center gap-xxs font-body text-2xs truncate"
-                style={{ color: isFailed ? 'var(--error)' : 'var(--text-tertiary)' }}
-              >
-                {isReady && <AgentAvailability />}
-                {isProcessing && (
-                <>
-                  <span className="video-lib-spinner shrink-0" aria-hidden />
-                  Analyzing — agents will use this once ready
-                </>
+              {isReady ? (
+                <AgentAvailability />
+              ) : (
+                <span
+                  className="inline-flex items-center gap-xxs font-body text-2xs truncate"
+                  style={{ color: isFailed ? 'var(--error)' : 'var(--text-tertiary)' }}
+                >
+                  {isProcessing && (
+                    <>
+                      <span className="video-lib-spinner shrink-0" aria-hidden />
+                      Analyzing — agents will use this once ready
+                    </>
+                  )}
+                  {isUploading && 'Uploading…'}
+                  {isFailed && (errorMessage ?? 'Re-analyze to use')}
+                </span>
               )}
-                {isUploading && 'Uploading…'}
-                {isFailed && (errorMessage ?? 'Re-analyze to use')}
-              </span>
             </div>
 
             {/* Tags — AI-extracted (sparkle, ready only) then upload (neutral). Hidden on narrow widths. */}
@@ -519,17 +522,20 @@ export function VideoLibraryCard({
 
           {/* ── Footer / status caption + actions ── */}
           <div className="flex items-center gap-xs pt-s mt-auto min-w-0">
-            <span className="flex-1 min-w-0 inline-flex items-center gap-xxs font-body text-2xs truncate" style={{ color: 'var(--text-tertiary)' }}>
-              {isReady && <AgentAvailability />}
-              {isProcessing && (
-                <>
-                  <span className="video-lib-spinner shrink-0" aria-hidden />
-                  Analyzing — agents will use this once ready
-                </>
-              )}
-              {isUploading && 'Uploading…'}
-              {isFailed && 'Re-analyze to use'}
-            </span>
+            {isReady ? (
+              <span className="flex-1 min-w-0"><AgentAvailability /></span>
+            ) : (
+              <span className="flex-1 min-w-0 inline-flex items-center gap-xxs font-body text-2xs truncate" style={{ color: 'var(--text-tertiary)' }}>
+                {isProcessing && (
+                  <>
+                    <span className="video-lib-spinner shrink-0" aria-hidden />
+                    Analyzing — agents will use this once ready
+                  </>
+                )}
+                {isUploading && 'Uploading…'}
+                {isFailed && 'Re-analyze to use'}
+              </span>
+            )}
 
             {isFailed && (
               <Button variant="outline" size="md" onClick={onRetry}>
