@@ -15,13 +15,17 @@
  */
 import { useState } from 'react'
 import { ProgressBar } from '../atoms/ProgressBar'
-import { DescriptionBox } from '../atoms/DescriptionBox'
 import Input from '../ui/Input'
 import Button from '../ui/Button'
 import Checkbox from '../ui/Checkbox'
 import { TrashIcon } from '../icons/TrashIcon'
 import { EditIcon } from '../icons/EditIcon'
 import { CheckIcon } from '../icons/CheckIcon'
+import { RadiologistIcon } from '../icons/RadiologistIcon'
+import { OracleIcon } from '../icons/OracleIcon'
+import { EventTag } from '../atoms/EventTag'
+import { AiTag } from '../atoms/AiTag'
+import { ClampTags } from './ClampTags'
 
 export type VideoStatus = 'uploading' | 'processing' | 'ready' | 'failed'
 
@@ -37,7 +41,12 @@ export interface VideoLibraryCardProps {
   gradient?: string
   status: VideoStatus
   progress: number
+  /** User-added tags (entered at upload) — neutral pills */
   tags?: string[]
+  /** AI-extracted tags (from the LLM) — sparkle pills, shown only once ready */
+  aiTags?: string[]
+  /** AI-generated summary (from the LLM) — shown on the card once ready */
+  aiSummary?: string
   description?: string
   errorMessage?: string
   /** Selection (bulk actions) */
@@ -48,7 +57,7 @@ export interface VideoLibraryCardProps {
   onDelete?: () => void
   onRetry?: () => void
   onSaveMeta?: (next: { title: string; description: string; tags: string[] }) => void
-  /** Fires only when Ready */
+  /** Opens the details side panel (fires for any status) */
   onOpen?: () => void
   className?: string
 }
@@ -85,6 +94,23 @@ const PlayGlyph = () => (
   </svg>
 )
 
+/** Ready-state indicator: an overlapping stack of the agent icons that can use this video */
+const AgentAvailability = () => (
+  <span
+    className="inline-flex items-center shrink-0"
+    aria-label="Available to Radiologist and Oracle"
+  >
+    <span className="video-lib-agent-chip" style={{ color: 'var(--brand)' }}>
+      <RadiologistIcon size={16} />
+      <span className="video-lib-tip">Radiologist</span>
+    </span>
+    <span className="video-lib-agent-chip -ml-[8px]" style={{ color: '#7B4CFF' }}>
+      <OracleIcon size={16} />
+      <span className="video-lib-tip">Oracle</span>
+    </span>
+  </span>
+)
+
 export function VideoLibraryCard({
   layout = 'grid',
   title,
@@ -96,6 +122,8 @@ export function VideoLibraryCard({
   status,
   progress,
   tags = [],
+  aiTags = [],
+  aiSummary,
   description,
   errorMessage,
   selected = false,
@@ -109,7 +137,6 @@ export function VideoLibraryCard({
 }: VideoLibraryCardProps) {
   const [editing, setEditing] = useState(false)
   const [draftTitle, setDraftTitle] = useState(title)
-  const [draftDesc, setDraftDesc] = useState(description ?? '')
   const [draftTags, setDraftTags] = useState(tags.join(', '))
 
   const isReady = status === 'ready'
@@ -119,14 +146,13 @@ export function VideoLibraryCard({
 
   const startEdit = () => {
     setDraftTitle(title)
-    setDraftDesc(description ?? '')
     setDraftTags(tags.join(', '))
     setEditing(true)
   }
   const saveEdit = () => {
     onSaveMeta?.({
       title: draftTitle.trim() || title,
-      description: draftDesc.trim(),
+      description: description ?? '',
       tags: draftTags
         .split(',')
         .map((t) => t.trim())
@@ -146,11 +172,8 @@ export function VideoLibraryCard({
       >
         {/* Thumbnail — fixed 168px, full row height */}
         <div
-          className={[
-            'relative shrink-0 w-[168px] self-stretch min-h-[94px] overflow-hidden',
-            isReady ? 'cursor-pointer' : 'cursor-default',
-          ].join(' ')}
-          onClick={isReady ? onOpen : undefined}
+          className="relative shrink-0 w-[168px] self-stretch min-h-[94px] overflow-hidden cursor-pointer"
+          onClick={onOpen}
           title={isReady ? undefined : 'Available to agents once analysis completes'}
         >
           {thumbnailSrc ? (
@@ -210,24 +233,28 @@ export function VideoLibraryCard({
         {/* Content */}
         {editing ? (
           <div className="flex flex-col flex-1 min-w-0 gap-s p-m">
-            <Input
-              value={draftTitle}
-              onChange={(e) => setDraftTitle(e.target.value)}
-              placeholder="Video title"
-              aria-label="Video title"
-            />
-            <DescriptionBox
-              className="h-[60px]"
-              placeholder="What should agents know about this video? Level, scenario, what to look for…"
-              value={draftDesc}
-              onChange={(e) => setDraftDesc(e.target.value)}
-            />
-            <Input
-              value={draftTags}
-              onChange={(e) => setDraftTags(e.target.value)}
-              placeholder="Tags, comma separated"
-              aria-label="Tags"
-            />
+            <div className="flex flex-col gap-xxs">
+              <label className="font-display text-2xs font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--text-tertiary)' }}>
+                Title
+              </label>
+              <Input
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                placeholder="Video title"
+                aria-label="Video title"
+              />
+            </div>
+            <div className="flex flex-col gap-xxs">
+              <label className="font-display text-2xs font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--text-tertiary)' }}>
+                Tags
+              </label>
+              <Input
+                value={draftTags}
+                onChange={(e) => setDraftTags(e.target.value)}
+                placeholder="Tags, comma separated"
+                aria-label="Tags"
+              />
+            </div>
             <div className="flex items-center justify-end gap-xs">
               <Button variant="outline" size="md" onClick={() => setEditing(false)}>
                 Cancel
@@ -257,12 +284,7 @@ export function VideoLibraryCard({
                 className="inline-flex items-center gap-xxs font-body text-2xs truncate"
                 style={{ color: isFailed ? 'var(--error)' : 'var(--text-tertiary)' }}
               >
-                {isReady && (
-                  <>
-                    <span className="video-lib-dot shrink-0" style={{ backgroundColor: 'var(--success)' }} aria-hidden />
-                    Available to Radiologist &amp; Oracle
-                  </>
-                )}
+                {isReady && <AgentAvailability />}
                 {isProcessing && (
                 <>
                   <span className="video-lib-spinner shrink-0" aria-hidden />
@@ -270,27 +292,25 @@ export function VideoLibraryCard({
                 </>
               )}
                 {isUploading && 'Uploading…'}
-                {isFailed && (errorMessage ?? 'Not referenceable until re-analyzed')}
+                {isFailed && (errorMessage ?? 'Re-analyze to use')}
               </span>
             </div>
 
-            {/* Tags — hidden on narrow widths */}
-            {tags.length > 0 && (
-              <div className="hidden lg:flex items-center gap-xxs shrink-0 max-w-[220px] flex-wrap justify-end">
-                {tags.slice(0, 3).map((t) => (
-                  <span
-                    key={t}
-                    className="inline-flex items-center px-s py-xxxs rounded-round font-body text-2xs"
-                    style={{ backgroundColor: 'var(--bg-tint-light)', color: 'var(--brand)' }}
-                  >
-                    {t}
-                  </span>
-                ))}
-                {tags.length > 3 && (
-                  <span className="font-body text-2xs" style={{ color: 'var(--text-tertiary)' }}>
-                    +{tags.length - 3}
-                  </span>
-                )}
+            {/* Tags — AI-extracted (sparkle, ready only) then upload (neutral). Hidden on narrow widths. */}
+            {((isReady && aiTags.length > 0) || tags.length > 0) && (
+              <div className="hidden lg:flex items-center gap-xxs shrink-0 max-w-[260px] flex-wrap justify-end">
+                {isReady && aiTags.slice(0, 2).map((t) => <AiTag key={`ai-${t}`} label={t} />)}
+                {tags.slice(0, 2).map((t) => <EventTag key={`up-${t}`} label={t} />)}
+                {(() => {
+                  const extra =
+                    (isReady ? aiTags.length - Math.min(2, aiTags.length) : 0) +
+                    (tags.length - Math.min(2, tags.length))
+                  return extra > 0 ? (
+                    <span className="font-body text-2xs" style={{ color: 'var(--text-tertiary)' }}>
+                      +{extra}
+                    </span>
+                  ) : null
+                })()}
               </div>
             )}
 
@@ -327,12 +347,9 @@ export function VideoLibraryCard({
     >
       {/* ── Media ── */}
       <div
-        className={[
-          'relative aspect-video w-full shrink-0 overflow-hidden',
-          isReady ? 'cursor-pointer' : 'cursor-default',
-        ].join(' ')}
-        onClick={isReady ? onOpen : undefined}
-        title={isReady ? undefined : 'Available to agents once analysis completes'}
+        className="relative aspect-video w-full shrink-0 overflow-hidden cursor-pointer"
+        onClick={onOpen}
+        title={isReady ? 'Open details' : 'Open details — analysis in progress'}
       >
         {/* base layer */}
         {thumbnailSrc ? (
@@ -412,24 +429,28 @@ export function VideoLibraryCard({
       {/* ── Body ── */}
       {editing ? (
         <div className="flex flex-col gap-s p-m">
-          <Input
-            value={draftTitle}
-            onChange={(e) => setDraftTitle(e.target.value)}
-            placeholder="Video title"
-            aria-label="Video title"
-          />
-          <DescriptionBox
-            className="h-[72px]"
-            placeholder="What should agents know about this video? Level, scenario, what to look for…"
-            value={draftDesc}
-            onChange={(e) => setDraftDesc(e.target.value)}
-          />
-          <Input
-            value={draftTags}
-            onChange={(e) => setDraftTags(e.target.value)}
-            placeholder="Tags, comma separated"
-            aria-label="Tags"
-          />
+          <div className="flex flex-col gap-xxs">
+            <label className="font-display text-2xs font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--text-tertiary)' }}>
+              Title
+            </label>
+            <Input
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              placeholder="Video title"
+              aria-label="Video title"
+            />
+          </div>
+          <div className="flex flex-col gap-xxs">
+            <label className="font-display text-2xs font-semibold uppercase tracking-[0.06em]" style={{ color: 'var(--text-tertiary)' }}>
+              Tags
+            </label>
+            <Input
+              value={draftTags}
+              onChange={(e) => setDraftTags(e.target.value)}
+              placeholder="Tags, comma separated"
+              aria-label="Tags"
+            />
+          </div>
           <div className="flex items-center justify-end gap-xs">
             <Button variant="outline" size="md" onClick={() => setEditing(false)}>
               Cancel
@@ -451,31 +472,33 @@ export function VideoLibraryCard({
             {sizeLabel} &middot; {dateLabel}
           </span>
 
-          {/* tags */}
-          {tags.length > 0 && (
-            <div className="flex items-center gap-xxs flex-wrap pt-xs">
-              {tags.map((t) => (
-                <span
-                  key={t}
-                  className="inline-flex items-center px-s py-xxxs rounded-round font-body text-2xs"
-                  style={{
-                    backgroundColor: 'var(--bg-tint-light)',
-                    color: 'var(--brand)',
-                  }}
-                >
-                  {t}
-                </span>
-              ))}
+          {/* tags — upload (neutral) on its own row, then AI-extracted (sparkle) on up to 2 rows */}
+          {(tags.length > 0 || (isReady && aiTags.length > 0)) && (
+            <div className="flex flex-col gap-xxs pt-xs w-full min-w-0">
+              {tags.length > 0 && (
+                <ClampTags
+                  items={tags}
+                  maxRows={1}
+                  renderItem={(t) => <EventTag key={`up-${t}`} label={t} className="!rounded-[6px]" />}
+                />
+              )}
+              {isReady && aiTags.length > 0 && (
+                <ClampTags
+                  items={aiTags}
+                  maxRows={2}
+                  renderItem={(t) => <AiTag key={`ai-${t}`} label={t} className="!rounded-[6px]" />}
+                />
+              )}
             </div>
           )}
 
-          {/* description preview */}
-          {description && !isProcessing && (
+          {/* AI summary — generated from the video by the LLM, shown once ready */}
+          {isReady && aiSummary && (
             <p
-              className="font-body text-xs leading-[1.5] line-clamp-2 pt-xxs"
+              className="font-body text-xs leading-[1.5] line-clamp-3 pt-xs"
               style={{ color: 'var(--text-secondary)' }}
             >
-              {description}
+              {aiSummary}
             </p>
           )}
 
@@ -497,12 +520,7 @@ export function VideoLibraryCard({
           {/* ── Footer / status caption + actions ── */}
           <div className="flex items-center gap-xs pt-s mt-auto min-w-0">
             <span className="flex-1 min-w-0 inline-flex items-center gap-xxs font-body text-2xs truncate" style={{ color: 'var(--text-tertiary)' }}>
-              {isReady && (
-                <>
-                  <span className="video-lib-dot shrink-0" style={{ backgroundColor: 'var(--success)' }} aria-hidden />
-                  Available to Radiologist &amp; Oracle
-                </>
-              )}
+              {isReady && <AgentAvailability />}
               {isProcessing && (
                 <>
                   <span className="video-lib-spinner shrink-0" aria-hidden />
@@ -510,7 +528,7 @@ export function VideoLibraryCard({
                 </>
               )}
               {isUploading && 'Uploading…'}
-              {isFailed && 'Not referenceable until re-analyzed'}
+              {isFailed && 'Re-analyze to use'}
             </span>
 
             {isFailed && (

@@ -19,7 +19,9 @@
 import { useEffect, useState, type DragEvent } from 'react'
 import { VideoLibraryCard, type VideoStatus } from '../molecules/VideoLibraryCard'
 import { AgentPageHeader } from '../molecules/AgentPageHeader'
-import { FilterTag } from '../atoms/FilterTag'
+import { LibraryFilterDialog } from './LibraryFilterDialog'
+import type { LibraryFilterValue, LibraryStatusFilter } from './LibraryFilterDialog'
+import { LibraryVideoSidePanel } from './LibraryVideoSidePanel'
 import { PopupModal } from '../molecules/PopupModal'
 import { UploadVideosModal, formatSize } from './UploadVideosModal'
 import { VideosEmptyState } from '../molecules/VideosEmptyState'
@@ -30,8 +32,6 @@ import { VideoLibraryIcon } from '../icons/VideoLibraryIcon'
 import { UploadIcon } from '../icons/UploadIcon'
 import { CloseIcon } from '../icons/CloseIcon'
 import { TrashIcon } from '../icons/TrashIcon'
-import { GridIcon } from '../icons/GridIcon'
-import { ListIcon } from '../icons/ListIcon'
 import { FilterIcon } from '../icons/FilterIcon'
 
 export interface LibraryVideo {
@@ -43,6 +43,10 @@ export interface LibraryVideo {
   status: VideoStatus
   progress: number
   tags: string[]
+  /** AI-extracted tags (from the LLM) — present once analysis is ready */
+  aiTags?: string[]
+  /** AI-generated summary (from the LLM) — present once analysis is ready */
+  aiSummary?: string
   description?: string
   error?: string
   addedAt: number
@@ -74,6 +78,24 @@ function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+// Simulated LLM output — assigned when a video finishes analysis (→ ready).
+const AI_SUMMARIES = [
+  'Players move through the session smoothly with a couple of hesitation points; engagement holds through the mid-game before a late drop-off.',
+  'Combat pacing stays steady with deaths clustered around the mid-section; most players recover and push the objective.',
+  'Strong early retention with a spike in menu time, then a brief stall before the final stretch of the match.',
+  'Clear progression with repeated attempts at one choke point; players who clear it tend to finish the session.',
+]
+const AI_TAG_POOL = [
+  'high engagement', 'mid-game stall', 'combat heavy', 'objective focus',
+  'menu hesitation', 'late drop-off', 'smooth run', 'retry loop',
+]
+
+function generateAiAnalysis(): { aiSummary: string; aiTags: string[] } {
+  const aiSummary = AI_SUMMARIES[Math.floor(Math.random() * AI_SUMMARIES.length)]
+  const aiTags = [...AI_TAG_POOL].sort(() => Math.random() - 0.5).slice(0, 3)
+  return { aiSummary, aiTags }
+}
+
 // ── Seed: mixed states so the page is alive on first paint ──
 function seedVideos(): LibraryVideo[] {
   const now = Date.now()
@@ -87,7 +109,9 @@ function seedVideos(): LibraryVideo[] {
       status: 'ready',
       progress: 100,
       tags: ['tutorial', 'onboarding'],
-      description: 'First-session new player path, captured on mid-tier device. Watch for the tutorial skip point.',
+      aiTags: ['tutorial skip', 'menu hesitation', 'fast completion'],
+      aiSummary:
+        'New players clear the tutorial quickly but hesitate on the first loadout menu. Most finish onboarding, with a noticeable skip at the loadout step worth a closer look.',
       addedAt: now - 1000 * 60 * 60 * 26,
     },
     {
@@ -98,6 +122,9 @@ function seedVideos(): LibraryVideo[] {
       status: 'ready',
       progress: 100,
       tags: ['boss-fight', 'balance'],
+      aiTags: ['difficulty spike', 'repeated death', 'rage quit'],
+      aiSummary:
+        'The Tier 3 boss spikes sharply in difficulty — players die repeatedly in the second phase, and several rage-quit before reaching the checkpoint.',
       addedAt: now - 1000 * 60 * 60 * 3,
     },
     {
@@ -107,6 +134,9 @@ function seedVideos(): LibraryVideo[] {
       status: 'processing',
       progress: 100,
       tags: ['matchmaking'],
+      aiTags: ['long queue', 'lobby idle', 'backfill'],
+      aiSummary:
+        'Matchmaking queues run long, leaving players idle in the lobby. Backfill kicks in late and a few players abandon before the match starts.',
       addedAt: now - 1000 * 60 * 8,
       analysisEndsAt: now + 9000,
       willFail: false,
@@ -124,7 +154,6 @@ function seedVideos(): LibraryVideo[] {
   ]
 }
 
-type StatusFilter = 'all' | 'processing' | 'ready' | 'failed'
 
 export interface VideoLibraryViewProps {
   className?: string
@@ -136,14 +165,33 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
   const [videos, setVideos] = useState<LibraryVideo[]>(() => initialVideos ?? seedVideos())
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [activeTags, setActiveTags] = useState<Set<string>>(new Set())
   const [dragOver, setDragOver] = useState(false)
   const [deleteIds, setDeleteIds] = useState<string[] | null>(null)
-  const [view, setView] = useState<'grid' | 'list'>('grid')
+  const [statusFilter, setStatusFilter] = useState<LibraryStatusFilter>('all')
+  const [activeTags, setActiveTags] = useState<Set<string>>(new Set())
+  const [activeAiTags, setActiveAiTags] = useState<Set<string>>(new Set())
   const [filterOpen, setFilterOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [dropFiles, setDropFiles] = useState<File[] | undefined>(undefined)
+  const [noteOpen, setNoteOpen] = useState(true)
+  // Details side panel — track the id so the panel reflects live status changes
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [panelMounted, setPanelMounted] = useState(false)
+  const [panelVisible, setPanelVisible] = useState(false)
+  const selectedVideo = selectedId ? videos.find((v) => v.id === selectedId) ?? null : null
+  const closePanel = () => setSelectedId(null)
+
+  // Delayed mount for the slide-in animation (mirrors the Radiologist flyout).
+  useEffect(() => {
+    if (selectedId && selectedVideo) {
+      setPanelMounted(true)
+      requestAnimationFrame(() => requestAnimationFrame(() => setPanelVisible(true)))
+    } else {
+      setPanelVisible(false)
+      const t = setTimeout(() => setPanelMounted(false), 300)
+      return () => clearTimeout(t)
+    }
+  }, [selectedId, selectedVideo])
 
   // ── Lifecycle simulation: single ticking interval reads latest state ──
   useEffect(() => {
@@ -174,7 +222,12 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
                 error: 'Analysis failed — the video may be corrupted or longer than the 20-min limit.',
               }
             }
-            return { ...v, status: 'ready' as VideoStatus }
+            // Attach simulated LLM output if the video doesn't already have it.
+            return {
+              ...v,
+              status: 'ready' as VideoStatus,
+              ...(v.aiSummary ? {} : generateAiAnalysis()),
+            }
           }
           return v
         })
@@ -264,24 +317,25 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
 
   // ── Derived ──
   const allTags = Array.from(new Set(videos.flatMap((v) => v.tags))).sort()
-  const counts = {
-    all: videos.length,
-    processing: videos.filter((v) => v.status === 'uploading' || v.status === 'processing').length,
-    ready: videos.filter((v) => v.status === 'ready').length,
-    failed: videos.filter((v) => v.status === 'failed').length,
-  }
+  const allAiTags = Array.from(new Set(videos.flatMap((v) => v.aiTags ?? []))).sort()
   const q = query.trim().toLowerCase()
   const filtered = videos.filter((v) => {
     const matchesQuery =
-      !q || v.title.toLowerCase().includes(q) || v.tags.some((t) => t.toLowerCase().includes(q))
+      !q ||
+      v.title.toLowerCase().includes(q) ||
+      v.tags.some((t) => t.toLowerCase().includes(q)) ||
+      (v.aiTags ?? []).some((t) => t.toLowerCase().includes(q))
     const matchesStatus =
       statusFilter === 'all' ||
       (statusFilter === 'processing' && (v.status === 'uploading' || v.status === 'processing')) ||
       (statusFilter === 'ready' && v.status === 'ready') ||
       (statusFilter === 'failed' && v.status === 'failed')
     const matchesTags = activeTags.size === 0 || v.tags.some((t) => activeTags.has(t))
-    return matchesQuery && matchesStatus && matchesTags
+    const matchesAiTags = activeAiTags.size === 0 || (v.aiTags ?? []).some((t) => activeAiTags.has(t))
+    return matchesQuery && matchesStatus && matchesTags && matchesAiTags
   })
+  const activeFilterCount =
+    (statusFilter !== 'all' ? 1 : 0) + activeTags.size + activeAiTags.size
 
   const selectedList = videos.filter((v) => selectedIds.has(v.id))
   const selectedFailed = selectedList.filter((v) => v.status === 'failed')
@@ -299,24 +353,21 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
     })
 
   const isEmpty = videos.length === 0
-  const activeFilterCount = (statusFilter !== 'all' ? 1 : 0) + activeTags.size
-  const STATUS_PILLS: { value: StatusFilter; label: string }[] = [
-    { value: 'all', label: `All ${counts.all}` },
-    { value: 'processing', label: `Processing ${counts.processing}` },
-    { value: 'ready', label: `Ready ${counts.ready}` },
-    { value: 'failed', label: `Failed ${counts.failed}` },
-  ]
 
   return (
-    <div
-      className={['flex flex-col gap-xl w-full max-w-[1120px] relative', className].filter(Boolean).join(' ')}
-      onDragOver={(e) => {
-        e.preventDefault()
-        if (!isEmpty) setDragOver(true)
-      }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={handleDrop}
-    >
+    <div className="flex w-full h-full overflow-hidden">
+      {/* Main content column — scrolls; reflows as the details panel pushes in */}
+      <div className="flex-1 min-w-0 overflow-y-auto flyout-scrollbar transition-all duration-300 ease-in-out">
+        <div className="flex flex-col items-center px-l sm:px-[32px] lg:px-[48px] xl:px-[64px] pt-[40px] lg:pt-[64px] pb-[64px]">
+          <div
+            className={['flex flex-col gap-xl w-full max-w-[1120px] relative', className].filter(Boolean).join(' ')}
+            onDragOver={(e) => {
+              e.preventDefault()
+              if (!isEmpty) setDragOver(true)
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+          >
       {/* drag overlay (populated state) */}
       {dragOver && !isEmpty && (
         <div className="absolute inset-0 z-30 flex items-center justify-center rounded-3xl context-uploader-dragover pointer-events-none">
@@ -330,7 +381,7 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
       <div className="flex items-center justify-between gap-xl w-full">
         <AgentPageHeader
           title="Library"
-          description="Bulk-upload gameplay videos so Radiologist & Oracle can reference them when answering your queries."
+          description="Bulk-upload gameplay videos so your agents can reference them when answering your queries."
           iconGradient="linear-gradient(135deg, #6431E0 0%, #7B4CFF 55%, #8FA8F8 100%)"
           icon={<VideoLibraryIcon size={40} />}
         />
@@ -377,55 +428,42 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
         </div>
       ) : (
         <>
-          {/* ── Agent gating note ── */}
-          <div
-            className="flex items-center gap-s px-m py-s rounded-xl"
-            style={{ backgroundColor: 'var(--bg-tint-light)', border: '1px solid var(--bg-tint)' }}
-          >
-            <span className="shrink-0" style={{ color: 'var(--brand)' }} aria-hidden>
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.4" />
-                <path d="M8 7.2V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                <circle cx="8" cy="5" r="0.9" fill="currentColor" />
-              </svg>
-            </span>
-            <span className="font-body text-xs" style={{ color: 'var(--text-secondary)' }}>
-              Only <span className="font-semibold" style={{ color: 'var(--brand)' }}>Ready</span> videos are referenced by
-              Radiologist &amp; Oracle. Analysis can take a few minutes per video.
-            </span>
-          </div>
+          {/* ── Agent gating note (dismissible) ── */}
+          {noteOpen && (
+            <div
+              className="flex items-center gap-s px-m py-s rounded-xl"
+              style={{ backgroundColor: 'var(--bg-tint-light)', border: '1px solid var(--bg-tint)' }}
+            >
+              <span className="shrink-0" style={{ color: 'var(--brand)' }} aria-hidden>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.4" />
+                  <path d="M8 7.2V11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  <circle cx="8" cy="5" r="0.9" fill="currentColor" />
+                </svg>
+              </span>
+              <span className="flex-1 min-w-0 font-body text-xs" style={{ color: 'var(--text-secondary)' }}>
+                Only <span className="font-semibold" style={{ color: 'var(--brand)' }}>Ready</span> videos are referenced by
+                your agents. Analysis can take a few minutes per video.
+              </span>
+              <Button
+                variant="transparent"
+                size="sm"
+                iconOnly
+                onClick={() => setNoteOpen(false)}
+                aria-label="Dismiss note"
+              >
+                <CloseIcon size={16} />
+              </Button>
+            </div>
+          )}
 
           {/* ── Library container — toolbar header + collection ── */}
           <div
             className="flex flex-col w-full rounded-3xl overflow-hidden"
             style={{ backgroundColor: 'var(--bg-elements)', border: '1px solid var(--border-subtle)' }}
           >
-            {/* Header — view toggle · search · filters */}
+            {/* Header — search · filters */}
             <div className="flex items-center gap-m p-l w-full flex-wrap">
-              {/* View mode toggle — paired tertiary icon-only buttons */}
-              <div className="flex items-center shrink-0">
-                <Button
-                  variant="tertiary"
-                  size="md"
-                  iconOnly
-                  onClick={() => setView('grid')}
-                  className={['!rounded-r-none', view === 'grid' ? 'toggle-btn-active z-[1]' : ''].join(' ')}
-                  aria-label="Grid view"
-                >
-                  <GridIcon size={20} />
-                </Button>
-                <Button
-                  variant="tertiary"
-                  size="md"
-                  iconOnly
-                  onClick={() => setView('list')}
-                  className={['!rounded-l-none -ml-[1.5px]', view === 'list' ? 'toggle-btn-active z-[1]' : ''].join(' ')}
-                  aria-label="List view"
-                >
-                  <ListIcon size={20} />
-                </Button>
-              </div>
-
               {/* Search */}
               <div className="w-[300px] max-w-full">
                 <Input
@@ -438,60 +476,35 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
 
               <div className="flex-1" />
 
-              {/* Filters disclosure toggle */}
+              {/* Filters — opens a modal (same style as Radiologist) with the library's tag filters */}
               <Button
                 variant="tertiary"
                 size="md"
                 leftIcon={<FilterIcon size={20} />}
-                onClick={() => setFilterOpen(!filterOpen)}
+                onClick={() => setFilterOpen(true)}
                 className={filterOpen || activeFilterCount > 0 ? 'toggle-btn-active' : ''}
               >
                 Filters{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
               </Button>
             </div>
 
-            {/* Filters row — status pills + tags */}
-            {filterOpen && (
-              <div
-                className="flex flex-col gap-s px-l py-m w-full"
-                style={{ borderTop: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-card)' }}
-              >
-                <div className="flex items-center gap-xs flex-wrap">
-                  <span className="font-body text-xs w-[48px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>
-                    Status
-                  </span>
-                  {STATUS_PILLS.map((p) => (
-                    <FilterTag
-                      key={p.value}
-                      label={p.label}
-                      selected={statusFilter === p.value}
-                      onClick={() => setStatusFilter(p.value)}
-                    />
-                  ))}
-                </div>
-                {allTags.length > 0 && (
-                  <div className="flex items-center gap-xs flex-wrap">
-                    <span className="font-body text-xs w-[48px] shrink-0" style={{ color: 'var(--text-tertiary)' }}>
-                      Tags
-                    </span>
-                    {allTags.map((t) => (
-                      <FilterTag
-                        key={t}
-                        label={t}
-                        selected={activeTags.has(t)}
-                        onClick={() =>
-                          setActiveTags((prev) => {
-                            const n = new Set(prev)
-                            n.has(t) ? n.delete(t) : n.add(t)
-                            return n
-                          })
-                        }
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+            <LibraryFilterDialog
+              isOpen={filterOpen}
+              onClose={() => setFilterOpen(false)}
+              allTags={allTags}
+              allAiTags={allAiTags}
+              value={{
+                status: statusFilter,
+                tags: Array.from(activeTags),
+                aiTags: Array.from(activeAiTags),
+              }}
+              onApply={(next: LibraryFilterValue) => {
+                setStatusFilter(next.status)
+                setActiveTags(new Set(next.tags))
+                setActiveAiTags(new Set(next.aiTags))
+                setFilterOpen(false)
+              }}
+            />
 
             {/* Bulk action bar — quiet select-all, or active selection toolbar */}
             {selectedIds.size === 0 ? (
@@ -556,16 +569,13 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
                 <VideosEmptyState message="No videos match your search or filters. Try clearing them to see your full library." />
               ) : (
                 <div
-                  className={
-                    view === 'grid'
-                      ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-l w-full'
-                      : 'flex flex-col gap-s w-full'
-                  }
+                  className="grid gap-l w-full"
+                  style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}
                 >
                   {filtered.map((v) => (
                     <VideoLibraryCard
                       key={v.id}
-                      layout={view}
+                      layout="grid"
                       title={v.title}
                       sizeLabel={formatSize(v.sizeBytes)}
                       dateLabel={formatDate(v.addedAt)}
@@ -575,6 +585,8 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
                       status={v.status}
                       progress={v.progress}
                       tags={v.tags}
+                      aiTags={v.aiTags}
+                      aiSummary={v.aiSummary}
                       description={v.description}
                       errorMessage={v.error}
                       selected={selectedIds.has(v.id)}
@@ -583,6 +595,7 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
                       onDelete={() => setDeleteIds([v.id])}
                       onRetry={() => retry(v.id)}
                       onSaveMeta={(next) => updateMeta(v.id, next)}
+                      onOpen={() => setSelectedId(v.id)}
                     />
                   ))}
                 </div>
@@ -613,6 +626,18 @@ export function VideoLibraryView({ className, initialVideos }: VideoLibraryViewP
         onConfirm={commitUpload}
         onSimulateImport={simulateCliImport}
       />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Details side panel — pushes the content in (mirrors Radiologist) ── */}
+      {panelMounted && selectedVideo && (
+        <div
+          className={['session-panel shrink-0', panelVisible ? 'session-panel-active' : ''].join(' ')}
+        >
+          <LibraryVideoSidePanel video={selectedVideo} onClose={closePanel} />
+        </div>
+      )}
     </div>
   )
 }
