@@ -317,6 +317,14 @@
   height: 6px;
   border-radius: 9999px;
 }
+/* library tag-scope picker rows */
+.library-tag-row {
+  transition: background-color 120ms ease;
+}
+.library-tag-row:hover {
+  background-color: var(--bg-tint-light);
+}
+
 /* overlapping agent-icon stack — "which agents can use this video" */
 .video-lib-agent-chip {
   display: inline-flex;

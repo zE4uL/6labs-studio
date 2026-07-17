@@ -11,7 +11,7 @@
  * Synced: 2026-04-04
  */
 
-import { useState } from 'react'
+import { useState, type ComponentProps } from 'react'
 import { RadiologistIcon } from '../icons/RadiologistIcon'
 import { OracleIcon } from '../icons/OracleIcon'
 import { SpecializedAgentsIcon } from '../icons/SpecializedAgentsIcon'
@@ -35,6 +35,10 @@ interface HeroSectionProps {
   selectedSource?: string
   /** Called when the user picks a source in the console popup */
   onSourceChange?: (value: string) => void
+  /** Library tag options + selection for scoping the Library source */
+  libraryTags?: ComponentProps<typeof InputFieldConsole>['libraryTags']
+  selectedLibraryTags?: string[]
+  onLibraryTagsChange?: (tags: string[]) => void
   /** Called when the user submits a query from the hero input */
   onSubmit?: (query: string, agent: Agent) => void
   /** Called when the user opens the Specialized Agents hub from the tab row */
@@ -43,7 +47,7 @@ interface HeroSectionProps {
 
 export type { Agent }
 
-export function HeroSection({ className, activeAgent: controlledAgent, onAgentChange, selectedSource, onSourceChange, onSubmit, onOpenSpecialized }: HeroSectionProps) {
+export function HeroSection({ className, activeAgent: controlledAgent, onAgentChange, selectedSource, onSourceChange, libraryTags, selectedLibraryTags, onLibraryTagsChange, onSubmit, onOpenSpecialized }: HeroSectionProps) {
   const [internalAgent, setInternalAgent] = useState<Agent>('radiologist')
   const activeAgent = controlledAgent ?? internalAgent
 
@@ -132,6 +136,9 @@ export function HeroSection({ className, activeAgent: controlledAgent, onAgentCh
           placeholder={placeholder}
           selectedPlatform={selectedSource}
           onPlatformChange={onSourceChange}
+          libraryTags={libraryTags}
+          selectedLibraryTags={selectedLibraryTags}
+          onLibraryTagsChange={onLibraryTagsChange}
         />
       </div>
     </div>

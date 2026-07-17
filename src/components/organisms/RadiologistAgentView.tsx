@@ -30,11 +30,15 @@ interface RadiologistAgentViewProps {
   selectedSource?: string
   /** Called when the user picks a source in the console popup */
   onSourceChange?: (value: string) => void
+  /** Library tag options + selection for scoping the Library source */
+  libraryTags?: ComponentProps<typeof InputFieldConsole>['libraryTags']
+  selectedLibraryTags?: string[]
+  onLibraryTagsChange?: (tags: string[]) => void
   /** Sessions for the gallery — defaults to the demo session set */
   sessions?: ComponentProps<typeof VideosContainer>['sessions']
 }
 
-export function RadiologistAgentView({ className, onSubmit, selectedSource, onSourceChange, sessions }: RadiologistAgentViewProps) {
+export function RadiologistAgentView({ className, onSubmit, selectedSource, onSourceChange, libraryTags, selectedLibraryTags, onLibraryTagsChange, sessions }: RadiologistAgentViewProps) {
   const [query, setQuery] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const blurTimeout = useRef<ReturnType<typeof setTimeout>>()
@@ -86,6 +90,9 @@ export function RadiologistAgentView({ className, onSubmit, selectedSource, onSo
             placeholder="Search for actions, objects and events in your game..."
             selectedPlatform={selectedSource}
             onPlatformChange={onSourceChange}
+            libraryTags={libraryTags}
+            selectedLibraryTags={selectedLibraryTags}
+            onLibraryTagsChange={onLibraryTagsChange}
           />
 
           {showSuggestions && !query.trim() && (

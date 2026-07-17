@@ -25,7 +25,7 @@ import { SessionDetailsPage } from '../components/organisms/SessionDetailsPage'
 import { ContextUploadsView } from '../components/organisms/ContextUploadsView'
 import { SpecializedAgentsView } from '../components/organisms/SpecializedAgentsView'
 import { VideoLibraryView } from '../components/organisms/VideoLibraryView'
-import { LIBRARY_SESSIONS } from '../lib/librarySessions'
+import { getLibraryTagOptions, filterLibraryByTags } from '../lib/librarySessions'
 import { ContextConnectorsView, CONNECTORS } from '../components/organisms/ContextConnectorsView'
 import { ConnectorDetailView } from '../components/organisms/ConnectorDetailView'
 import {
@@ -65,6 +65,28 @@ import { useBarista } from '../state/BaristaContext'
 
 type ActiveNav = 'home' | 'barista' | 'library' | 'radiologist' | 'oracle' | 'forecaster' | 'coach' | 'guardian' | 'specialized' | 'uploads' | 'connectors'
 type RadiologistView = 'home' | 'results' | 'details'
+
+// ── URL-hash navigation (deep-link + reload support) ───────────────────────────
+// The app is hash-routed (App.tsx owns `#/design-system`); everything else is a
+// HomePage view. We mirror the primary view in the hash so links change the URL
+// and a reload restores the same screen instead of dropping back to Home.
+const HASH_NAVS: ActiveNav[] = [
+  'home', 'library', 'radiologist', 'oracle', 'forecaster', 'specialized', 'uploads', 'connectors',
+]
+
+function parseNavHash(): { nav: ActiveNav; agentId: string | null } {
+  const raw = window.location.hash.replace(/^#\/?/, '')
+  const [seg, sub] = raw.split('/')
+  if (seg === 'specialized') return { nav: 'specialized', agentId: sub || null }
+  if ((HASH_NAVS as string[]).includes(seg)) return { nav: seg as ActiveNav, agentId: null }
+  return { nav: 'home', agentId: null }
+}
+
+function navToHash(nav: ActiveNav, agentId: string | null): string {
+  if (nav === 'specialized') return agentId ? `#/specialized/${agentId}` : '#/specialized'
+  if (nav === 'home') return '#/'
+  return `#/${nav}`
+}
 
 const ORACLE_SUGGESTIONS = [
   'Show the top five most intense close-range fights.',
@@ -217,17 +239,45 @@ function runSnowflakeOnboardingSteps({
 
 export function HomePage() {
   const barista = useBarista()
-  const [activeNav, setActiveNav] = useState<ActiveNav>('home')
+  const [activeNav, setActiveNav] = useState<ActiveNav>(() => parseNavHash().nav)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [language, setLanguage] = useState('EN')
   const [heroAgent, setHeroAgent] = useState<Agent>('radiologist')
   // Console source (sources popup) — 'library' switches the Radiologist gallery
   // to the videos available in the Library
   const [consoleSource, setConsoleSource] = useState('bluestacks')
-  const gallerySessions = consoleSource === 'library' ? LIBRARY_SESSIONS : undefined
+  // Library tag scoping — narrows which library videos the agent references (OR match)
+  const [libraryScopeTags, setLibraryScopeTags] = useState<string[]>([])
+  // Only author-added upload tags are offered for scoping (AI tags are display-only)
+  const libraryTagOptions = getLibraryTagOptions().filter((o) => o.group === 'upload')
+  const gallerySessions =
+    consoleSource === 'library' ? filterLibraryByTags(libraryScopeTags) : undefined
   const [selectedConnectorId, setSelectedConnectorId] = useState<string | null>(null)
   // Specialized Agents hub: null = card grid, set = that agent's chat flow.
-  const [specializedAgentId, setSpecializedAgentId] = useState<string | null>(null)
+  const [specializedAgentId, setSpecializedAgentId] = useState<string | null>(() => parseNavHash().agentId)
+
+  // Mirror the primary view into the URL hash so the address bar tracks
+  // navigation and reloads restore the current screen.
+  useEffect(() => {
+    if (window.location.hash.startsWith('#/design-system')) return
+    const target = navToHash(activeNav, specializedAgentId)
+    const cur = window.location.hash
+    const curIsHome = cur === '' || cur === '#' || cur === '#/'
+    if (cur === target || (target === '#/' && curIsHome)) return
+    window.location.hash = target
+  }, [activeNav, specializedAgentId])
+
+  // React to deep links, manual hash edits, and browser back/forward.
+  useEffect(() => {
+    const onHash = () => {
+      if (window.location.hash.startsWith('#/design-system')) return
+      const { nav, agentId } = parseNavHash()
+      setActiveNav((prev) => (prev === nav ? prev : nav))
+      setSpecializedAgentId((prev) => (prev === agentId ? prev : agentId))
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
   // Unsaved-changes guard for the connector detail view.
   const [connectorDirty, setConnectorDirty] = useState(false)
   const [pendingExit, setPendingExit] = useState<(() => void) | null>(null)
@@ -411,6 +461,9 @@ export function HomePage() {
                   onSubmit={(query) => enterRadiologistResults(query)}
                   selectedSource={consoleSource}
                   onSourceChange={setConsoleSource}
+                  libraryTags={libraryTagOptions}
+                  selectedLibraryTags={libraryScopeTags}
+                  onLibraryTagsChange={setLibraryScopeTags}
                   sessions={gallerySessions}
                 />
               </div>
@@ -434,11 +487,8 @@ export function HomePage() {
         )
 
       case 'library':
-        return (
-          <div className="flex flex-col items-center px-[64px] pt-[64px] pb-[64px]">
-            <VideoLibraryView />
-          </div>
-        )
+        return <VideoLibraryView />
+
 
       case 'connectors': {
         const selectedConnector = selectedConnectorId
@@ -542,6 +592,9 @@ export function HomePage() {
               onAgentChange={setHeroAgent}
               selectedSource={consoleSource}
               onSourceChange={setConsoleSource}
+              libraryTags={libraryTagOptions}
+              selectedLibraryTags={libraryScopeTags}
+              onLibraryTagsChange={setLibraryScopeTags}
               onSubmit={(query, agent) => {
                 if (agent === 'radiologist') {
                   enterRadiologistResults(query)
@@ -668,7 +721,8 @@ export function HomePage() {
           // Views that manage their own scrolling
           (activeNav === 'radiologist' && radiologistView !== 'home') ||
           activeNav === 'barista' ||
-          (activeNav === 'specialized' && specializedAgentId !== null)
+          (activeNav === 'specialized' && specializedAgentId !== null) ||
+          activeNav === 'library'
             ? 'overflow-hidden'
             : 'overflow-y-auto',
         ].join(' ')}>

@@ -30,6 +30,9 @@ import { YoutubeIcon } from '../icons/YoutubeIcon'
 import { SdkPcIcon } from '../icons/SdkPcIcon'
 import { SdkMobileIcon } from '../icons/SdkMobileIcon'
 import { VideoLibraryIcon } from '../icons/VideoLibraryIcon'
+import { CloseIcon } from '../icons/CloseIcon'
+import { LibraryTagScope } from '../molecules/LibraryTagScope'
+import type { LibraryTagOption } from '../../lib/librarySessions'
 import { SelectDropdown } from '../molecules/SelectDropdown'
 import {
   ChatActionMenuFlyout,
@@ -70,6 +73,12 @@ export interface InputFieldConsoleProps {
   selectedPlatform?: string
   /** Called when a platform is selected */
   onPlatformChange?: (value: string) => void
+  /** Library tag options (grouped, counted) — shown when the Library source is active */
+  libraryTags?: LibraryTagOption[]
+  /** Currently selected library tags to scope the source */
+  selectedLibraryTags?: string[]
+  /** Called when the scoped tag set changes */
+  onLibraryTagsChange?: (tags: string[]) => void
   /** Onboarded connectors shown in the flyout's Connectors submenu */
   connectors?: ConnectorOption[]
   /** Called with the new set of enabled connector ids */
@@ -101,6 +110,9 @@ export default function InputFieldConsole({
   platforms = DEFAULT_PLATFORMS,
   selectedPlatform,
   onPlatformChange,
+  libraryTags = [],
+  selectedLibraryTags = [],
+  onLibraryTagsChange,
   connectors = [],
   onConnectorsChange,
   onAttachFile,
@@ -118,6 +130,8 @@ export default function InputFieldConsole({
   const [internalPlatform, setInternalPlatform] = useState(platforms[0]?.value ?? '')
   const activePlatformValue = selectedPlatform ?? internalPlatform
   const activePlatform = platforms.find((p) => p.value === activePlatformValue) ?? platforms[0]
+  const isLibrary = activePlatformValue === 'library'
+  const scopedCount = isLibrary ? selectedLibraryTags.length : 0
 
   const [sourceOpen, setSourceOpen] = useState(false)
 
@@ -196,7 +210,9 @@ export default function InputFieldConsole({
     } else {
       setInternalPlatform(val)
     }
-    setSourceOpen(false)
+    // Keep the popup open for Library so the tag-scope panel is revealed in place;
+    // other sources have nothing more to configure, so close.
+    if (val !== 'library') setSourceOpen(false)
   }
 
   return (
@@ -235,6 +251,43 @@ export default function InputFieldConsole({
           rows={rows}
           className="input-console-textarea"
         />
+      )}
+
+      {/* Scoped-to tag chips — visible when Library is scoped to specific tags */}
+      {isLibrary && selectedLibraryTags.length > 0 && (
+        <div
+          className="flex items-center gap-xs flex-wrap px-xs pt-xs"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <span className="font-body text-2xs font-semibold uppercase tracking-[0.08em]" style={{ color: 'var(--text-tertiary)' }}>
+            Scoped to
+          </span>
+          {selectedLibraryTags.map((t) => (
+            <span
+              key={t}
+              className="inline-flex items-center gap-xxs pl-s pr-xs py-xxxs rounded-round font-body text-2xs"
+              style={{ backgroundColor: 'var(--bg-tint-light)', color: 'var(--brand)' }}
+            >
+              {t}
+              <button
+                type="button"
+                onClick={() => onLibraryTagsChange?.(selectedLibraryTags.filter((x) => x !== t))}
+                aria-label={`Remove ${t}`}
+                className="inline-flex"
+              >
+                <CloseIcon size={12} />
+              </button>
+            </span>
+          ))}
+          <button
+            type="button"
+            onClick={() => onLibraryTagsChange?.([])}
+            className="font-body text-2xs font-semibold"
+            style={{ color: 'var(--text-tertiary)' }}
+          >
+            Clear
+          </button>
+        </div>
       )}
 
       {/* Actions row */}
@@ -279,10 +332,12 @@ export default function InputFieldConsole({
               aria-expanded={sourceOpen}
             >
               {activePlatform?.label ?? 'Sources'}
+              {scopedCount > 0 ? ` · ${scopedCount}` : ''}
             </Button>
             {sourceOpen && (
-              <div className="absolute bottom-full left-0 mb-xs z-50 min-w-[200px]">
+              <div className="absolute bottom-full left-0 mb-xs z-50 flex flex-row items-end gap-xs">
                 <SelectDropdown
+                  className="min-w-[200px] shrink-0"
                   title="SOURCES"
                   groups={[
                     {
@@ -296,6 +351,13 @@ export default function InputFieldConsole({
                   value={activePlatformValue}
                   onChange={handlePlatformSelect}
                 />
+                {isLibrary && libraryTags.length > 0 && (
+                  <LibraryTagScope
+                    options={libraryTags}
+                    selected={selectedLibraryTags}
+                    onChange={(tags) => onLibraryTagsChange?.(tags)}
+                  />
+                )}
               </div>
             )}
           </div>
